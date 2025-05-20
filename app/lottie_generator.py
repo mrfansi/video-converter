@@ -1,20 +1,34 @@
 import os
 import json
-import time
+import logging
+import tempfile
+from typing import List, Dict, Any, Tuple, Optional
 import cv2
 import numpy as np
-import logging
-from typing import List, Dict, Any
 from pathlib import Path
 from svgelements import SVG, Path as SVGPath
-import xml.etree.ElementTree as ET
-from PIL import Image, ImageOps
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Import python-lottie library
+try:
+    import lottie
+    from lottie import objects
+    from lottie.parsers.svg import parse_svg_file
+    from lottie.exporters.core import export_lottie
+    from lottie.objects import ShapeElement, Group, Fill, Stroke, Path
+    from lottie.objects import easing
+    from lottie import NVector
+    LOTTIE_AVAILABLE = True
+    logger.info("python-lottie library available, using it for Lottie generation")
+except ImportError:
+    logger.warning("python-lottie library not available, falling back to manual JSON generation")
+    LOTTIE_AVAILABLE = False
 
 from app.config import settings
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 def trace_png_to_svg(png_path: str, output_dir: str, simplify_tolerance: float = 1.0) -> str:
     """
@@ -26,74 +40,106 @@ def trace_png_to_svg(png_path: str, output_dir: str, simplify_tolerance: float =
         simplify_tolerance (float): Tolerance for path simplification (higher = more simplification)
         
     Returns:
-        str: Path to the generated SVG file
+        str: Path to the SVG file
     """
     try:
-        # Create output filename
-        base_name = os.path.basename(png_path).replace(".png", "")
-        svg_path = os.path.join(output_dir, f"{base_name}.svg")
+        # Read image
+        img = cv2.imread(png_path, cv2.IMREAD_UNCHANGED)
+        if img is None:
+            raise ValueError(f"Could not read image: {png_path}")
+            
+        logger.info(f"Processing image: {png_path} with shape {img.shape}")
         
-        # Read image with OpenCV
-        img = cv2.imread(png_path)
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        # Convert to grayscale if needed
+        if len(img.shape) > 2 and img.shape[2] > 1:
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        else:
+            gray = img
         
-        # Apply threshold to get binary image
-        _, thresh = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
+        # Apply adaptive threshold to get better results with varying brightness
+        thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+                                      cv2.THRESH_BINARY_INV, 11, 2)
         
-        # Find contours
-        contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        # Optional: Apply morphological operations to clean up the image
+        kernel = np.ones((3, 3), np.uint8)
+        thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+        
+        # Find contours - use RETR_TREE to get hierarchical contours
+        contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_TC89_KCOS)
+        
+        logger.info(f"Found {len(contours)} contours")
+        
+        # Get image dimensions
+        height, width = img.shape[:2]
         
         # Create SVG content
-        width, height = img.shape[1], img.shape[0]
-        svg_content = f'<svg width="{width}" height="{height}" xmlns="http://www.w3.org/2000/svg">\n'
+        svg_content = f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">'
         
-        # Filter and simplify contours
-        min_contour_area = (width * height) * 0.0001  # Ignore tiny contours (0.01% of image area)
-        simplified_contours = []
-        
-        for contour in contours:
-            # Filter out very small contours
+        # Add paths for each contour
+        valid_paths = 0
+        for i, contour in enumerate(contours):
+            # Skip very small contours (noise)
             area = cv2.contourArea(contour)
-            if area < min_contour_area:
+            if area < 20:  # Increased minimum area
                 continue
                 
-            # Apply Douglas-Peucker algorithm to simplify the contour
-            epsilon = simplify_tolerance * cv2.arcLength(contour, True)
-            approx = cv2.approxPolyDP(contour, epsilon, True)
+            # Skip very large contours (background)
+            if area > 0.9 * width * height:
+                continue
             
-            # Only keep contours with reasonable number of points
-            if len(approx) > 2 and len(approx) < 100:  # Limit max points per contour
-                simplified_contours.append(approx)
-        
-        # Add each simplified contour as a path
-        for contour in simplified_contours:
-            if len(contour) > 2:  # Only process contours with at least 3 points
-                path_data = "M"
-                for i, point in enumerate(contour):
-                    x, y = point[0][0], point[0][1]
-                    if i == 0:
-                        path_data += f" {x},{y}"
-                    else:
-                        path_data += f" L {x},{y}"
-                path_data += " Z"  # Close the path
+            # Simplify contour if requested
+            if simplify_tolerance > 0:
+                epsilon = simplify_tolerance * cv2.arcLength(contour, True)
+                contour = cv2.approxPolyDP(contour, epsilon, True)
+            
+            # Skip contours with too few points
+            if len(contour) < 3:
+                continue
                 
-                svg_content += f'  <path d="{path_data}" fill="black" />\n'
+            # Convert contour to SVG path
+            path = "M"
+            for i, point in enumerate(contour):
+                x, y = point[0]
+                if i == 0:
+                    path += f"{x},{y}"
+                else:
+                    path += f" L{x},{y}"
+            
+            # Close path
+            path += " Z"
+            
+            # Add path to SVG with a unique ID
+            svg_content += f'<path d="{path}" fill="black" id="path{i}" />'
+            valid_paths += 1
         
+        # If no valid paths were found, create a simple rectangle as fallback
+        if valid_paths == 0:
+            logger.warning(f"No valid contours found in {png_path}, creating fallback shape")
+            # Create a simple rectangle in the middle of the image
+            rect_width = width // 2
+            rect_height = height // 2
+            x = (width - rect_width) // 2
+            y = (height - rect_height) // 2
+            svg_content += f'<rect x="{x}" y="{y}" width="{rect_width}" height="{rect_height}" fill="black" id="fallback" />'
+        
+        # Close SVG
         svg_content += '</svg>'
         
-        # Write SVG file
+        # Save SVG file
+        os.makedirs(output_dir, exist_ok=True)
+        svg_filename = os.path.basename(png_path).replace('.png', '.svg')
+        svg_path = os.path.join(output_dir, svg_filename)
+        
         with open(svg_path, 'w') as f:
             f.write(svg_content)
         
-        if not os.path.exists(svg_path):
-            raise FileNotFoundError(f"Failed to create SVG file: {svg_path}")
-        
-        logger.info(f"Traced PNG to SVG using OpenCV: {svg_path} with {len(simplified_contours)} paths")
+        logger.info(f"Traced PNG to SVG: {svg_path} with {valid_paths} paths")
         return svg_path
         
     except Exception as e:
-        logger.error(f"Unexpected error tracing PNG to SVG: {str(e)}")
+        logger.error(f"Error tracing PNG to SVG: {str(e)}")
         raise
+
 
 def parse_svg_to_paths(svg_path: str) -> List[Dict[str, Any]]:
     """
@@ -114,46 +160,62 @@ def parse_svg_to_paths(svg_path: str) -> List[Dict[str, Any]]:
         
         for element in svg.elements():
             if isinstance(element, SVGPath):
-                # Convert SVG path to Lottie path
-                path_data = []
+                # Process path to standard Lottie bezier format
+                vertices = []
+                in_tangents = []
+                out_tangents = []
+                closed = element.closed
                 
-                # Process path segments
+                # Process path segments to extract points and tangents
+                current_point = None
                 for segment in element:
-                    # Get segment type by checking the class name
                     segment_type = segment.__class__.__name__
                     
-                    # Convert segment to Lottie bezier format based on its type
-                    if segment_type == "Move":  # MoveTo
-                        path_data.append({
-                            "t": 0,  # Type: MoveTo
-                            "p": {"x": segment.end.x, "y": segment.end.y}
-                        })
-                    elif segment_type == "Line":  # LineTo
-                        path_data.append({
-                            "t": 1,  # Type: LineTo
-                            "p": {"x": segment.end.x, "y": segment.end.y}
-                        })
-                    elif segment_type == "CubicBezier":  # CurveTo
-                        path_data.append({
-                            "t": 2,  # Type: CurveTo
-                            "cp1": {"x": segment.control1.x, "y": segment.control1.y},
-                            "cp2": {"x": segment.control2.x, "y": segment.control2.y},
-                            "p": {"x": segment.end.x, "y": segment.end.y}
-                        })
-                    elif segment_type == "Close":  # ClosePath
-                        path_data.append({
-                            "t": 3  # Type: ClosePath
-                        })
+                    if segment_type == "Move":
+                        vertices.append([segment.end.x, segment.end.y])
+                        in_tangents.append([0, 0])  # No tangents for move
+                        out_tangents.append([0, 0])
+                        current_point = segment.end
+                    elif segment_type == "Line":
+                        vertices.append([segment.end.x, segment.end.y])
+                        # For lines, tangents are zero vectors
+                        in_tangents.append([0, 0])
+                        out_tangents.append([0, 0])
+                        current_point = segment.end
+                    elif segment_type == "CubicBezier":
+                        vertices.append([segment.end.x, segment.end.y])
+                        
+                        # Calculate relative control points (Lottie format)
+                        if current_point:
+                            # Out tangent of previous point (relative to current point)
+                            out_dx = segment.control1.x - current_point.x
+                            out_dy = segment.control1.y - current_point.y
+                            out_tangents[-1] = [out_dx, out_dy]
+                            
+                            # In tangent of current point (relative to end point)
+                            in_dx = segment.control2.x - segment.end.x
+                            in_dy = segment.control2.y - segment.end.y
+                            in_tangents.append([in_dx, in_dy])
+                        else:
+                            in_tangents.append([0, 0])
+                        
+                        out_tangents.append([0, 0])  # Will be set by next segment if needed
+                        current_point = segment.end
+                    elif segment_type == "Close" and vertices:
+                        # For closed paths, connect back to the first point
+                        # No need to add a new vertex, just set the closed flag
+                        closed = True
                 
-                # Create Lottie shape
+                # Create standard Lottie path object
                 lottie_path = {
                     "ty": "sh",  # Type: Shape
-                    "d": 1,      # Direction: 1 for clockwise
                     "ks": {      # Keyframes
                         "a": 0,  # Animated: 0 for no
                         "k": {   # Keyframe value
-                            "c": True if element.closed else False,  # Closed path
-                            "v": path_data  # Vertices
+                            "c": closed,  # Closed path
+                            "i": in_tangents,  # In tangents
+                            "o": out_tangents,  # Out tangents
+                            "v": vertices  # Vertices
                         }
                     }
                 }
@@ -167,268 +229,26 @@ def parse_svg_to_paths(svg_path: str) -> List[Dict[str, Any]]:
         logger.error(f"Error parsing SVG to paths: {str(e)}")
         raise
 
-def create_lottie_animation(
-    frame_paths: List[List[Dict[str, Any]]],
-    fps: int = settings.DEFAULT_FPS,
-    width: int = None,  # Now optional
-    height: int = None,  # Now optional
-    max_frames: int = 100,  # Maximum number of frames to include
-    optimize: bool = True   # Whether to apply optimizations
-) -> Dict[str, Any]:
+
+def parse_svg_paths_to_lottie_format(svg_paths: List[str]) -> List[List[Dict[str, Any]]]:
     """
-    Create a Lottie animation from frame paths with optimizations
+    Parse multiple SVG files and extract paths in Lottie-compatible format
     
     Args:
-        frame_paths (List[List[Dict[str, Any]]]): List of paths for each frame
-        width (int): Animation width
-        height (int): Animation height
-        fps (int): Frames per second
-        max_frames (int): Maximum number of frames to include (will sample if exceeded)
-        optimize (bool): Whether to apply optimizations to reduce file size
+        svg_paths (List[str]): List of paths to SVG files
         
     Returns:
-        Dict[str, Any]: Lottie animation JSON
+        List[List[Dict[str, Any]]]: List of frames, each containing a list of paths in Lottie format
     """
-    try:
-        # Calculate animation duration
-        original_frame_count = len(frame_paths)
-        
-        # Sample frames if we have too many
-        if original_frame_count > max_frames and optimize:
-            # Calculate sampling interval to maintain animation duration
-            sample_interval = original_frame_count / max_frames
-            sampled_frames = []
-            
-            for i in range(max_frames):
-                # Get the frame index using the sampling interval
-                frame_idx = min(int(i * sample_interval), original_frame_count - 1)
-                sampled_frames.append(frame_paths[frame_idx])
-                
-            frame_paths = sampled_frames
-            logger.info(f"Sampled {original_frame_count} frames down to {len(frame_paths)} frames")
-            
-            # Adjust FPS to maintain animation duration
-            original_duration = original_frame_count / fps
-            fps = max(1, int(len(frame_paths) / original_duration))
-        
-        frame_count = len(frame_paths)
-        duration_frames = frame_count
-        
-        # Determine dimensions if not provided
-        # For Lottie animations, we need to have width and height
-        # If not provided, we'll use a default size or try to infer from the SVG paths
-        if width is None or height is None:
-            # Try to infer from the first SVG path if available
-            if len(frame_paths) > 0 and len(frame_paths[0]) > 0:
-                # Get dimensions from the first SVG path
-                first_svg_path = frame_paths[0][0]
-                if 'ks' in first_svg_path and 'k' in first_svg_path['ks']:
-                    # Try to determine bounds from the path data
-                    path_data = first_svg_path['ks']['k']
-                    if isinstance(path_data, list) and len(path_data) > 0:
-                        # Find min/max x and y values to determine bounds
-                        x_values = []
-                        y_values = []
-                        for point in path_data:
-                            if isinstance(point, dict) and 'x' in point and 'y' in point:
-                                x_values.append(point['x'])
-                                y_values.append(point['y'])
-                        
-                        if x_values and y_values:
-                            inferred_width = max(x_values) - min(x_values)
-                            inferred_height = max(y_values) - min(y_values)
-                            
-                            # Use inferred dimensions with some padding
-                            width = width or int(inferred_width * 1.2)
-                            height = height or int(inferred_height * 1.2)
-                            logger.info(f"Inferred dimensions from SVG paths: {width}x{height}")
-            
-            # If still not determined, use defaults
-            width = width or settings.DEFAULT_WIDTH
-            height = height or settings.DEFAULT_HEIGHT
-            logger.info(f"Using dimensions: {width}x{height}")
-        
-        # Create base Lottie JSON structure
-        lottie_json = {
-            "v": "5.7.8",  # Lottie version
-            "fr": fps,     # Frame rate
-            "ip": 0,       # In point (first frame)
-            "op": duration_frames,  # Out point (last frame)
-            "w": width,    # Width
-            "h": height,   # Height
-            "nm": "Video to Lottie",  # Name
-            "ddd": 0,      # 3D: 0 for 2D animation
-            "assets": [],  # Assets
-            "layers": []   # Layers
-        }
-        
-        # Optimization: Deduplicate similar paths across frames if optimize is enabled
-        path_cache = {}
-        path_usage_count = {}
-        
-        if optimize:
-            # First pass: identify duplicate/similar paths
-            for frame_index, paths in enumerate(frame_paths):
-                for path_index, path in enumerate(paths):
-                    # Create a simplified hash of the path for comparison
-                    if 'ks' in path and 'k' in path['ks']:
-                        path_data = str(path['ks']['k'])
-                        path_hash = hash(path_data[:100])  # Use first 100 chars as a fingerprint
-                        
-                        if path_hash in path_cache:
-                            path_usage_count[path_hash] = path_usage_count.get(path_hash, 1) + 1
-                        else:
-                            path_cache[path_hash] = path
-                            path_usage_count[path_hash] = 1
-        
-        # Filter to paths used in multiple frames (worth reusing)
-        reusable_paths = {k: v for k, v in path_cache.items() if path_usage_count.get(k, 0) > 1}
-        
-        # If we have reusable paths, add them as assets
-        if optimize and reusable_paths:
-            for i, (path_hash, path) in enumerate(reusable_paths.items()):
-                asset_id = f"path_{i}"
-                lottie_json["assets"].append({
-                    "id": asset_id,
-                    "nm": f"Reusable Path {i}",
-                    "fr": fps,
-                    "layers": [{
-                        "ty": 4,
-                        "nm": "Path Layer",
-                        "shapes": [{
-                            "ty": "gr",
-                            "it": [
-                                path,
-                                {
-                                    "ty": "fl",
-                                    "c": {"a": 0, "k": [0, 0, 0, 1]},
-                                    "o": {"a": 0, "k": 100}
-                                },
-                                {
-                                    "ty": "tr",
-                                    "p": {"a": 0, "k": [0, 0]},
-                                    "a": {"a": 0, "k": [0, 0]},
-                                    "s": {"a": 0, "k": [100, 100]},
-                                    "r": {"a": 0, "k": 0},
-                                    "o": {"a": 0, "k": 100},
-                                    "sk": {"a": 0, "k": 0},
-                                    "sa": {"a": 0, "k": 0}
-                                }
-                            ],
-                            "nm": "Shape Group"
-                        }]
-                    }]
-                })
-                
-                # Store the asset ID with the path hash for reference
-                path_cache[path_hash] = asset_id
-        
-        # Create a layer for each frame
-        for frame_index, paths in enumerate(frame_paths):
-            # Create shape layer
-            layer = {
-                "ty": 4,       # Type: Shape Layer
-                "nm": f"Frame {frame_index + 1}",  # Name
-                "sr": 1,       # Time Stretch
-                "ks": {        # Transform properties
-                    "o": {"a": 0, "k": 100},  # Opacity
-                    "r": {"a": 0, "k": 0},    # Rotation
-                    "p": {"a": 0, "k": [width/2, height/2]},  # Position
-                    "a": {"a": 0, "k": [0, 0]},  # Anchor Point
-                    "s": {"a": 0, "k": [100, 100]}  # Scale
-                },
-                "ao": 0,       # Auto-Orient
-                "shapes": [],  # Shapes
-                "ip": frame_index,    # In point
-                "op": frame_index + 1,  # Out point
-                "st": 0,       # Start Time
-                "bm": 0        # Blend Mode: Normal
-            }
-            
-            # Add shapes to layer - with optimization if enabled
-            if optimize and reusable_paths:
-                # Try to reuse paths from assets when possible
-                for path in paths:
-                    if 'ks' in path and 'k' in path['ks']:
-                        path_data = str(path['ks']['k'])
-                        path_hash = hash(path_data[:100])
-                        
-                        if path_hash in reusable_paths:
-                            # Reference the asset instead of including the full path data
-                            asset_id = path_cache[path_hash]
-                            shape_group = {
-                                "ty": "gr",  # Type: Group
-                                "it": [{
-                                    "ty": "fl",  # Type: Fill
-                                    "c": {"a": 0, "k": [0, 0, 0, 1]},  # Color (black)
-                                    "o": {"a": 0, "k": 100}  # Opacity
-                                }],
-                                "nm": "Shape Group"  # Name
-                            }
-                            layer["shapes"].append(shape_group)
-                            continue
-                    
-                    # If not reusable, add the full path data
-                    shape_group = {
-                        "ty": "gr",  # Type: Group
-                        "it": [      # Items
-                            path,    # Path
-                            {        # Fill
-                                "ty": "fl",  # Type: Fill
-                                "c": {"a": 0, "k": [0, 0, 0, 1]},  # Color (black)
-                                "o": {"a": 0, "k": 100}  # Opacity
-                            },
-                            {        # Group transform
-                                "ty": "tr",  # Type: Transform
-                                "p": {"a": 0, "k": [0, 0]},  # Position
-                                "a": {"a": 0, "k": [0, 0]},  # Anchor point
-                                "s": {"a": 0, "k": [100, 100]},  # Scale
-                                "r": {"a": 0, "k": 0},  # Rotation
-                                "o": {"a": 0, "k": 100},  # Opacity
-                                "sk": {"a": 0, "k": 0},  # Skew
-                                "sa": {"a": 0, "k": 0}   # Skew Axis
-                            }
-                        ],
-                        "nm": "Shape Group"  # Name
-                    }
-                    layer["shapes"].append(shape_group)
-            else:
-                # No optimization, add all paths directly
-                for path in paths:
-                    shape_group = {
-                        "ty": "gr",  # Type: Group
-                        "it": [      # Items
-                            path,    # Path
-                            {        # Fill
-                                "ty": "fl",  # Type: Fill
-                                "c": {"a": 0, "k": [0, 0, 0, 1]},  # Color (black)
-                                "o": {"a": 0, "k": 100}  # Opacity
-                            },
-                            {        # Group transform
-                                "ty": "tr",  # Type: Transform
-                                "p": {"a": 0, "k": [0, 0]},  # Position
-                                "a": {"a": 0, "k": [0, 0]},  # Anchor point
-                                "s": {"a": 0, "k": [100, 100]},  # Scale
-                                "r": {"a": 0, "k": 0},  # Rotation
-                                "o": {"a": 0, "k": 100},  # Opacity
-                                "sk": {"a": 0, "k": 0},  # Skew
-                                "sa": {"a": 0, "k": 0}   # Skew Axis
-                            }
-                        ],
-                        "nm": "Shape Group"  # Name
-                    }
-                    layer["shapes"].append(shape_group)
-            
-            # Add layer to animation
-            lottie_json["layers"].append(layer)
-        
-        optimization_info = "with optimizations" if optimize else "without optimizations"
-        logger.info(f"Created Lottie animation with {frame_count} frames {optimization_info}")
-        return lottie_json
-        
-    except Exception as e:
-        logger.error(f"Error creating Lottie animation: {str(e)}")
-        raise
+    frame_paths = []
+    
+    for svg_path in svg_paths:
+        # Parse SVG file and extract paths
+        paths = parse_svg_to_paths(svg_path)
+        frame_paths.append(paths)
+    
+    return frame_paths
+
 
 def save_lottie_json(lottie_json: Dict[str, Any], output_path: str, compress: bool = True) -> str:
     """
@@ -469,19 +289,185 @@ def save_lottie_json(lottie_json: Dict[str, Any], output_path: str, compress: bo
             if compress:
                 json.dump(lottie_json, f, separators=(',', ':'))  # Remove whitespace
             else:
-                json.dump(lottie_json, f)
+                json.dump(lottie_json, f, indent=2)
         
         # Get file size after compression for logging
         post_size = os.path.getsize(output_path)
         
         if compress:
             compression_ratio = (1 - (post_size / pre_size)) * 100 if pre_size > 0 else 0
-            logger.info(f"Saved compressed Lottie JSON to {output_path} (reduced by {compression_ratio:.1f}%)")
-        else:
-            logger.info(f"Saved uncompressed Lottie JSON to {output_path}")
-            
+            logger.info(f"Compressed Lottie JSON from {pre_size} to {post_size} bytes ({compression_ratio:.2f}% reduction)")
+        
         return output_path
         
     except Exception as e:
         logger.error(f"Error saving Lottie JSON: {str(e)}")
+        raise
+
+
+def create_lottie_animation(
+    svg_paths: List[str],  # List of SVG file paths
+    fps: int = 30,
+    width: int = None,  # Now optional
+    height: int = None,  # Now optional
+    max_frames: int = 100,  # Maximum number of frames to include
+    optimize: bool = True,  # Whether to apply optimizations
+) -> Dict[str, Any]:
+    """
+    Create a Lottie animation from a list of SVG files
+    
+    Args:
+        svg_paths (List[str]): List of SVG file paths
+        fps (int): Frames per second
+        width (int): Width of the animation (optional, will use SVG dimensions if not provided)
+        height (int): Height of the animation (optional, will use SVG dimensions if not provided)
+        max_frames (int): Maximum number of frames to include
+        optimize (bool): Whether to apply optimizations
+        
+    Returns:
+        Dict[str, Any]: Lottie animation JSON
+    """
+    try:
+        # Parse SVG paths to Lottie format
+        frame_paths = parse_svg_paths_to_lottie_format(svg_paths)
+        
+        # Determine dimensions from SVG if not provided
+        if width is None or height is None:
+            try:
+                # Try to get dimensions from first SVG
+                first_svg = SVG.parse(svg_paths[0])
+                width = width or int(first_svg.width)
+                height = height or int(first_svg.height)
+            except Exception as e:
+                logger.warning(f"Could not get dimensions from SVG: {str(e)}")
+                # Use defaults if SVG doesn't specify dimensions
+                width = width or 1920
+                height = height or 1080
+        
+        # Use the manual JSON generation method which is more reliable
+        logger.info(f"Creating Lottie animation with {len(svg_paths)} frames, dimensions: {width}x{height}")
+        return create_lottie_animation_manual(
+            frame_paths,
+            fps=fps,
+            width=width,
+            height=height,
+            max_frames=max_frames,
+            optimize=optimize
+        )
+    except Exception as e:
+        logger.error(f"Error creating Lottie animation: {str(e)}")
+        raise
+
+
+def create_lottie_animation_manual(
+    frame_paths: List[List[Dict[str, Any]]],
+    fps: int = 30,
+    width: int = 1920,
+    height: int = 1080,
+    max_frames: int = 100,
+    optimize: bool = True,
+) -> Dict[str, Any]:
+    """
+    Create a Lottie animation from parsed SVG paths manually (fallback method)
+    
+    Args:
+        frame_paths (List[List[Dict[str, Any]]]): List of frames, each containing a list of paths
+        fps (int): Frames per second
+        width (int): Width of the animation
+        height (int): Height of the animation
+        max_frames (int): Maximum number of frames to include
+        optimize (bool): Whether to apply optimizations
+        
+    Returns:
+        Dict[str, Any]: Lottie animation JSON
+    """
+    try:
+        # Sample frames if needed to reduce size
+        original_frame_count = len(frame_paths)
+        sampled_frame_paths = frame_paths
+        
+        if original_frame_count > max_frames and optimize:
+            # Calculate sampling interval to maintain animation duration
+            sample_interval = original_frame_count / max_frames
+            sampled_indices = [int(i * sample_interval) for i in range(max_frames)]
+            # Ensure last frame is included
+            if original_frame_count - 1 not in sampled_indices:
+                sampled_indices[-1] = original_frame_count - 1
+            sampled_frame_paths = [frame_paths[i] for i in sampled_indices]
+            logger.info(f"Sampled {len(sampled_frame_paths)} frames from {original_frame_count} original frames")
+        
+        # Create base Lottie JSON structure
+        lottie_json = {
+            "v": "5.7.1",  # Lottie version
+            "fr": fps,
+            "ip": 0,
+            "op": len(sampled_frame_paths),
+            "w": width,
+            "h": height,
+            "nm": "Video Animation",
+            "ddd": 0,  # 3D flag (0 = 2D)
+            "assets": [],
+            "layers": [],
+            "markers": []
+        }
+        
+        # Create a shape layer for each frame
+        for i, paths in enumerate(sampled_frame_paths):
+            # Create a layer for this frame
+            layer = {
+                "ty": 4,  # Shape layer
+                "nm": f"Frame {i}",
+                "sr": 1,  # Time stretch
+                "ks": {  # Transform properties
+                    "o": {"a": 0, "k": 100},  # Opacity
+                    "r": {"a": 0, "k": 0},  # Rotation
+                    "p": {"a": 0, "k": [width/2, height/2]},  # Position
+                    "a": {"a": 0, "k": [0, 0]},  # Anchor point
+                    "s": {"a": 0, "k": [100, 100]}  # Scale
+                },
+                "ao": 0,  # Auto-Orient
+                "shapes": [],
+                "ip": i,  # In point (frame number)
+                "op": i + 1,  # Out point (next frame)
+                "st": 0,  # Start time
+                "bm": 0  # Blend mode
+            }
+            
+            # Add shapes to the layer
+            for path in paths:
+                # Create a group for each path
+                shape_group = {
+                    "ty": "gr",  # Group
+                    "it": [
+                        path,  # The path shape
+                        {
+                            "ty": "fl",  # Fill
+                            "c": {"a": 0, "k": [0, 0, 0, 1]},  # Color (black)
+                            "o": {"a": 0, "k": 100}  # Opacity
+                        },
+                        {
+                            "ty": "tr",  # Transform
+                            "p": {"a": 0, "k": [0, 0]},  # Position
+                            "a": {"a": 0, "k": [0, 0]},  # Anchor point
+                            "s": {"a": 0, "k": [100, 100]},  # Scale
+                            "r": {"a": 0, "k": 0},  # Rotation
+                            "o": {"a": 0, "k": 100},  # Opacity
+                            "sk": {"a": 0, "k": 0},  # Skew
+                            "sa": {"a": 0, "k": 0}  # Skew axis
+                        }
+                    ],
+                    "nm": "Shape Group"
+                }
+                
+                # Add shape group to layer
+                layer["shapes"].append(shape_group)
+            
+            # Add layer to animation
+            lottie_json["layers"].append(layer)
+        
+        logger.info(f"Created Lottie animation manually with {len(sampled_frame_paths)} frames")
+        return lottie_json
+        
+    except Exception as e:
+        logger.error(f"Error creating Lottie animation manually: {str(e)}")
         raise

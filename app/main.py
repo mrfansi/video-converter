@@ -121,9 +121,17 @@ def process_video_task(
                 details=f"Preparing to process {original_filename}"
             )
         
-        # Create subdirectories for frames and SVGs
-        frames_dir = os.path.join(temp_dir, "frames")
-        svg_dir = os.path.join(temp_dir, "svg")
+        # Use data folder for frames and SVGs instead of temp_dir
+        data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+        frames_dir = os.path.join(data_dir, "frames")
+        svg_dir = os.path.join(data_dir, "svg")
+        os.makedirs(frames_dir, exist_ok=True)
+        os.makedirs(svg_dir, exist_ok=True)
+        
+        # Create a unique subfolder for this video processing task
+        task_timestamp = int(time.time())
+        frames_dir = os.path.join(frames_dir, str(task_timestamp))
+        svg_dir = os.path.join(svg_dir, str(task_timestamp))
         os.makedirs(frames_dir, exist_ok=True)
         os.makedirs(svg_dir, exist_ok=True)
         
@@ -148,7 +156,7 @@ def process_video_task(
                 details=f"Extracting frames from video at {fps} fps"
             )
             
-        frame_paths = extract_frames(file_path, frames_dir, fps)
+        frame_paths = extract_frames(file_path, frames_dir, fps=fps, width=width, height=height)
         logger.info(f"Extracted {len(frame_paths)} frames from video")
         
         # Step 2: Process frames to generate SVG files
@@ -185,58 +193,24 @@ def process_video_task(
         
         logger.info(f"Generated {len(svg_paths)} SVG files")
         
-        # Step 3: Parse SVG files to extract paths
+        # Step 3: Create Lottie animation directly from SVG files
         current_step += 1
         if task_id:
             task_queue.update_progress(
                 task_id=task_id,
-                current_step="Parsing SVG files",
+                current_step="Creating Lottie animation",
                 completed_steps=current_step,
                 percent=60,
-                details=f"Extracting vector paths from {len(svg_paths)} SVG files"
-            )
-            
-        parsed_paths = []
-        for i, svg_path in enumerate(svg_paths):
-            # Update progress occasionally for long SVG parsing operations
-            if task_id and i % max(1, total_frames // 5) == 0:
-                svg_percent = int((i / total_frames) * 100)
-                task_queue.update_progress(
-                    task_id=task_id,
-                    current_step="Parsing SVG files",
-                    details=f"Parsing SVG file {i+1}/{len(svg_paths)} ({svg_percent}%)"
-                )
-                
-            paths = parse_svg_to_paths(svg_path)
-            parsed_paths.append(paths)
-        
-        # Step 4: Create Lottie animation
-        current_step += 1
-        if task_id:
-            task_queue.update_progress(
-                task_id=task_id,
-                current_step="Generating Lottie animation",
-                completed_steps=current_step,
-                percent=80,
-                details=f"Creating Lottie animation with {len(parsed_paths)} frames at {fps} fps"
+                details=f"Generating Lottie animation from {len(svg_paths)} SVG files"
             )
         
-        # Calculate max frames based on video length to prevent huge files
-        # For longer videos, we'll sample fewer frames
-        max_frames = 100  # Default max frames
-        if len(parsed_paths) > 200:
-            # For longer videos, use fewer frames to keep file size manageable
-            max_frames = min(100, 1000 // (len(parsed_paths) // 100))
-            logger.info(f"Long video detected ({len(parsed_paths)} frames), limiting to {max_frames} frames")
-            
-        # Create optimized Lottie animation
+        # Create Lottie animation directly from SVG files using python-lottie
         lottie_json = create_lottie_animation(
-            parsed_paths, 
-            fps=fps, 
-            width=width, 
+            svg_paths=svg_paths,  # Pass SVG file paths directly
+            fps=fps,
+            width=width,
             height=height,
-            max_frames=max_frames,
-            optimize=True  # Enable optimizations
+            optimize=True  # Apply optimizations to reduce file size
         )
         
         # Save Lottie JSON to file with compression
@@ -282,7 +256,12 @@ def process_video_task(
                     
                 # Use the first frame for the thumbnail
                 first_frame = frame_paths[0]
-                thumbnail_path = generate_thumbnail_from_frame(first_frame, temp_dir)
+                thumbnail_path = generate_thumbnail_from_frame(
+                    frame_path=first_frame,
+                    output_dir=temp_dir,
+                    source_dimensions=(width, height),  # Use source video dimensions
+                    maintain_aspect_ratio=True
+                )
                 
                 # Upload the thumbnail with a related object key
                 lottie_key = upload_result["object_key"]
@@ -653,7 +632,12 @@ def convert_video_format_task(
             if frame_paths and len(frame_paths) > 0:
                 # Use the first frame for the thumbnail
                 first_frame = frame_paths[0]
-                thumbnail_path = generate_thumbnail_from_frame(first_frame, temp_dir)
+                thumbnail_path = generate_thumbnail_from_frame(
+                    frame_path=first_frame,
+                    output_dir=temp_dir,
+                    source_dimensions=(width, height),  # Use source video dimensions
+                    maintain_aspect_ratio=True
+                )
                 
                 # Upload the thumbnail with a related object key
                 video_key = upload_result["object_key"]

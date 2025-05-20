@@ -315,6 +315,9 @@
         // Show preview container
         lottiePreview.style.display = "block";
 
+        // Clear any existing animation
+        lottieContainer.innerHTML = "";
+
         // Show thumbnail if available
         if (thumbnailUrl) {
           thumbnailPreview.src = thumbnailUrl;
@@ -323,14 +326,66 @@
           thumbnailPreview.style.display = "none";
         }
 
-        // Load Lottie animation
-        lottie.loadAnimation({
-          container: lottieContainer,
-          renderer: "svg",
-          loop: true,
-          autoplay: true,
-          path: lottieUrl,
-        });
+        console.log("Loading Lottie animation from URL:", lottieUrl);
+        
+        // First try to fetch the JSON directly to check if it's accessible and valid
+        fetch(lottieUrl)
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`Failed to fetch Lottie JSON: ${response.status} ${response.statusText}`);
+            }
+            return response.json();
+          })
+          .then(animationData => {
+            console.log('Successfully fetched Lottie JSON data:', animationData);
+            
+            // Now load the animation with the fetched data
+            try {
+              const anim = lottie.loadAnimation({
+                container: lottieContainer,
+                renderer: "svg",
+                loop: true,
+                autoplay: true,
+                animationData: animationData, // Use the fetched data directly instead of path
+              });
+              
+              // Add event listeners to debug animation loading
+              anim.addEventListener('DOMLoaded', () => {
+                console.log('Lottie animation DOM loaded successfully');
+              });
+              
+              anim.addEventListener('data_ready', () => {
+                console.log('Lottie data loaded successfully');
+              });
+              
+              anim.addEventListener('data_failed', (error) => {
+                console.error('Lottie data loading failed:', error);
+                // Display error message in the container
+                lottieContainer.innerHTML = `<div style="color: red; padding: 20px;">
+                  <h4>Animation Loading Error</h4>
+                  <p>Could not load the Lottie animation. See console for details.</p>
+                  <p>Try downloading the JSON file directly: <a href="${lottieUrl}" target="_blank">Download JSON</a></p>
+                </div>`;
+              });
+            } catch (error) {
+              console.error('Error initializing Lottie animation:', error);
+              // Display error message in the container
+              lottieContainer.innerHTML = `<div style="color: red; padding: 20px;">
+                <h4>Animation Error</h4>
+                <p>${error.message || 'Could not initialize the Lottie animation'}</p>
+              </div>`;
+            }
+          })
+          .catch(error => {
+            console.error('Error fetching Lottie JSON:', error);
+            // Display error message in the container
+            lottieContainer.innerHTML = `<div style="color: red; padding: 20px;">
+              <h4>Animation Loading Error</h4>
+              <p>Could not fetch the Lottie JSON file: ${error.message}</p>
+              <p>Try downloading the JSON file directly: <a href="${lottieUrl}" target="_blank">Download JSON</a></p>
+              <p>Check browser console for more details.</p>
+            </div>`;
+          });
       }
     </script>
   </body>
