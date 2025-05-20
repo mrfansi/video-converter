@@ -8,3 +8,12 @@ aptPkgs = [
     "libxext6", 
     "python3-opencv"
 ]
+
+[phases.install]
+cmds = ["pip install --upgrade pip setuptools wheel", "pip install --use-pep517 -r requirements.txt"]
+
+[start]
+cmd = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+
+[variables]
+PORT = "8000"
