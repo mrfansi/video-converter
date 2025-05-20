@@ -12,7 +12,7 @@ from app.domain.interfaces.video_format_task import IVideoFormatTaskStrategy
 from app.infrastructure.video_format_task.task_strategies import (
     StandardVideoFormatTaskStrategy,
     OptimizedVideoFormatTaskStrategy,
-    FallbackVideoFormatTaskStrategy
+    FallbackVideoFormatTaskStrategy,
 )
 
 logger = logging.getLogger(__name__)
@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 class VideoFormatTaskStrategy(Enum):
     """Enum for video format task processing strategies."""
+
     STANDARD = "standard"
     OPTIMIZED = "optimized"
     FALLBACK = "fallback"
@@ -27,36 +28,47 @@ class VideoFormatTaskStrategy(Enum):
 
 class VideoFormatTaskProcessor:
     """Video format task processor using the Strategy pattern.
-    
+
     This class provides a video format task processor implementation that uses the Strategy pattern
     for improved maintainability and extensibility.
     """
-    
+
     def __init__(self, strategy: Optional[IVideoFormatTaskStrategy] = None):
         """Initialize the video format task processor.
-        
+
         Args:
             strategy: Video format task processing strategy to use
         """
         self.strategy = strategy or StandardVideoFormatTaskStrategy()
-    
+
     def set_strategy(self, strategy: IVideoFormatTaskStrategy) -> None:
         """Set the video format task processing strategy.
-        
+
         Args:
             strategy: Video format task processing strategy to use
         """
         self.strategy = strategy
-    
-    def process_video_format_task(self, temp_dir: str, file_path: str, output_format: str,
-                                quality: str, width: Optional[int] = None, height: Optional[int] = None,
-                                bitrate: Optional[str] = None, preset: str = "medium", crf: Optional[int] = None,
-                                audio_codec: Optional[str] = None, audio_bitrate: Optional[str] = None,
-                                original_filename: Optional[str] = None, task_id: Optional[str] = None,
-                                strategy_type: Optional[Union[VideoFormatTaskStrategy, str]] = None,
-                                progress_callback: Optional[Callable] = None) -> Dict[str, Any]:
+
+    def process_video_format_task(
+        self,
+        temp_dir: str,
+        file_path: str,
+        output_format: str,
+        quality: str,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+        bitrate: Optional[str] = None,
+        preset: str = "medium",
+        crf: Optional[int] = None,
+        audio_codec: Optional[str] = None,
+        audio_bitrate: Optional[str] = None,
+        original_filename: Optional[str] = None,
+        task_id: Optional[str] = None,
+        strategy_type: Optional[Union[VideoFormatTaskStrategy, str]] = None,
+        progress_callback: Optional[Callable] = None,
+    ) -> Dict[str, Any]:
         """Process a video format task.
-        
+
         Args:
             temp_dir: Temporary directory for processing
             file_path: Path to the uploaded video file
@@ -73,7 +85,7 @@ class VideoFormatTaskProcessor:
             task_id: Task ID for progress tracking
             strategy_type: Strategy type to use
             progress_callback: Callback function for progress updates
-            
+
         Returns:
             Dict[str, Any]: Processing result with URLs
         """
@@ -81,14 +93,14 @@ class VideoFormatTaskProcessor:
         if strategy_type is not None:
             if isinstance(strategy_type, str):
                 strategy_type = VideoFormatTaskStrategy(strategy_type)
-            
+
             if strategy_type == VideoFormatTaskStrategy.OPTIMIZED:
                 self.set_strategy(OptimizedVideoFormatTaskStrategy())
             elif strategy_type == VideoFormatTaskStrategy.FALLBACK:
                 self.set_strategy(FallbackVideoFormatTaskStrategy())
             else:  # STANDARD or any other value
                 self.set_strategy(StandardVideoFormatTaskStrategy())
-        
+
         # Process the video format task using the selected strategy
         return self.strategy.process_video_format_task(
             temp_dir=temp_dir,
@@ -104,25 +116,27 @@ class VideoFormatTaskProcessor:
             audio_bitrate=audio_bitrate,
             original_filename=original_filename,
             task_id=task_id,
-            progress_callback=progress_callback
+            progress_callback=progress_callback,
         )
-    
+
     @staticmethod
-    def create_strategy(strategy_type: Union[VideoFormatTaskStrategy, str]) -> IVideoFormatTaskStrategy:
+    def create_strategy(
+        strategy_type: Union[VideoFormatTaskStrategy, str],
+    ) -> IVideoFormatTaskStrategy:
         """Create a video format task processing strategy based on the specified type.
-        
+
         Args:
             strategy_type: Strategy type to create
-            
+
         Returns:
             IVideoFormatTaskStrategy: Video format task processing strategy
-            
+
         Raises:
             ValueError: If the specified strategy type is not supported
         """
         if isinstance(strategy_type, str):
             strategy_type = VideoFormatTaskStrategy(strategy_type)
-        
+
         if strategy_type == VideoFormatTaskStrategy.OPTIMIZED:
             return OptimizedVideoFormatTaskStrategy()
         elif strategy_type == VideoFormatTaskStrategy.FALLBACK:

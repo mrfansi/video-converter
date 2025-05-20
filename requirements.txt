@@ -15,3 +15,12 @@ requests>=2.31.0
 lottie
 scikit-learn
 matplotlib
+flake8
+pylint
+black
+mypy
+ruff
+boto3-stubs
+types-requests
+types-Pillow
+

@@ -8,12 +8,12 @@ from app.infrastructure.image_tracing.tracing_strategies import (
     BasicImageTracingStrategy,
     StandardImageTracingStrategy,
     AdvancedImageTracingStrategy,
-    ImageTracingStrategyFactory
+    ImageTracingStrategyFactory,
 )
 
 __all__ = [
-    'BasicImageTracingStrategy',
-    'StandardImageTracingStrategy',
-    'AdvancedImageTracingStrategy',
-    'ImageTracingStrategyFactory'
+    "BasicImageTracingStrategy",
+    "StandardImageTracingStrategy",
+    "AdvancedImageTracingStrategy",
+    "ImageTracingStrategyFactory",
 ]

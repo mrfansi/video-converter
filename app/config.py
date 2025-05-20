@@ -5,10 +5,12 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
+
 class Settings(BaseSettings):
     """
     Application settings loaded from environment variables
     """
+
     # API settings
     API_TITLE: str = "Video Converter API"
     API_DESCRIPTION: str = """
@@ -31,13 +33,13 @@ class Settings(BaseSettings):
     4. When complete, receive URLs to the processed files
     """
     API_VERSION: str = "1.0.0"
-    
+
     # Processing settings
     DEFAULT_FPS: int = 30
     DEFAULT_WIDTH: int = 800
     DEFAULT_HEIGHT: int = 600
     TEMP_DIR: str = os.path.join(os.path.dirname(os.path.dirname(__file__)), "media")
-    
+
     # Cloudflare R2 settings
     R2_ENDPOINT_URL: str = os.getenv("R2_ENDPOINT_URL", "")
     R2_ACCESS_KEY_ID: str = os.getenv("R2_ACCESS_KEY_ID", "")
@@ -45,10 +47,11 @@ class Settings(BaseSettings):
     R2_BUCKET_NAME: str = os.getenv("R2_BUCKET_NAME", "lottie-animations")
     R2_PATH_PREFIX: str = os.getenv("R2_PATH_PREFIX", "lottie")
     R2_URL: str = os.getenv("R2_URL", "")  # Custom domain for R2 public access
-    
+
     class Config:
         env_file = ".env"
         case_sensitive = True
+
 
 # Create settings instance
 settings = Settings()

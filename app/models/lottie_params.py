@@ -5,7 +5,7 @@ reducing function parameter complexity and improving code readability.
 """
 
 from enum import Enum
-from typing import Dict, Any, Optional, List, Union, Callable, Tuple
+from typing import Optional, List, Union, Callable
 from pydantic import Field, validator
 
 from app.models.base_params import BaseParams, ParamBuilder
@@ -13,6 +13,7 @@ from app.models.base_params import BaseParams, ParamBuilder
 
 class LottieColorMode(str, Enum):
     """Color modes for Lottie animations."""
+
     COLORED = "colored"
     MONOCHROME = "monochrome"
     GRAYSCALE = "grayscale"
@@ -20,6 +21,7 @@ class LottieColorMode(str, Enum):
 
 class LottieOptimizationLevel(int, Enum):
     """Optimization levels for Lottie animations."""
+
     NONE = 0
     BASIC = 1
     MEDIUM = 2
@@ -28,69 +30,79 @@ class LottieOptimizationLevel(int, Enum):
 
 class LottieAnimationParams(BaseParams):
     """Parameters for Lottie animation generation.
-    
+
     This parameter object encapsulates all options for creating Lottie animations,
     replacing the need for numerous function parameters.
     """
+
     # Required parameters
     frame_paths: List[str] = Field(..., description="List of paths to frame images")
-    output_path: str = Field(..., description="Path to save the output Lottie animation")
-    
+    output_path: str = Field(
+        ..., description="Path to save the output Lottie animation"
+    )
+
     # Optional parameters with defaults
     width: int = Field(default=512, description="Width of the Lottie animation")
     height: int = Field(default=512, description="Height of the Lottie animation")
     fps: int = Field(default=24, description="Frames per second")
-    color_mode: LottieColorMode = Field(default=LottieColorMode.COLORED, description="Color mode")
-    background_color: Optional[str] = Field(default=None, description="Background color in hex format")
-    optimization_level: LottieOptimizationLevel = Field(
-        default=LottieOptimizationLevel.MEDIUM, 
-        description="Optimization level for the animation"
+    color_mode: LottieColorMode = Field(
+        default=LottieColorMode.COLORED, description="Color mode"
     )
-    simplify_shapes: bool = Field(default=True, description="Whether to simplify shapes")
-    simplify_tolerance: float = Field(default=1.0, description="Tolerance for shape simplification")
-    
+    background_color: Optional[str] = Field(
+        default=None, description="Background color in hex format"
+    )
+    optimization_level: LottieOptimizationLevel = Field(
+        default=LottieOptimizationLevel.MEDIUM,
+        description="Optimization level for the animation",
+    )
+    simplify_shapes: bool = Field(
+        default=True, description="Whether to simplify shapes"
+    )
+    simplify_tolerance: float = Field(
+        default=1.0, description="Tolerance for shape simplification"
+    )
+
     # Callback for progress tracking
     progress_callback: Optional[Callable[[int], None]] = Field(
-        default=None, 
-        description="Callback function for progress updates"
+        default=None, description="Callback function for progress updates"
     )
-    
-    @validator('frame_paths')
+
+    @validator("frame_paths")
     def validate_frame_paths(cls, v):
         """Validate that frame paths list is not empty."""
         if not v:
             raise ValueError("Frame paths list cannot be empty")
         return v
-    
-    @validator('output_path')
+
+    @validator("output_path")
     def validate_output_path(cls, v):
         """Validate that output path is not empty."""
         if not v or not v.strip():
             raise ValueError("Output path cannot be empty")
         return v
-    
-    @validator('width', 'height')
+
+    @validator("width", "height")
     def validate_dimensions(cls, v):
         """Validate that dimensions are positive."""
         if v <= 0:
             raise ValueError("Dimensions must be positive")
         return v
-    
-    @validator('fps')
+
+    @validator("fps")
     def validate_fps(cls, v):
         """Validate that fps is positive."""
         if v <= 0:
             raise ValueError("FPS must be positive")
         return v
-    
-    @validator('background_color')
+
+    @validator("background_color")
     def validate_background_color(cls, v):
         """Validate background color format."""
-        if v is not None and not (v.startswith('#') and len(v) in [4, 7, 9]):
+        if v is not None and not (v.startswith("#") and len(v) in [4, 7, 9]):
             raise ValueError("Background color must be in hex format (e.g., #RRGGBB)")
         return v
-    
-    @validator('simplify_tolerance')
+
+    @validator("simplify_tolerance")
     def validate_simplify_tolerance(cls, v):
         """Validate that simplify tolerance is positive."""
         if v <= 0:
@@ -100,112 +112,132 @@ class LottieAnimationParams(BaseParams):
 
 class LottieAnimationParamBuilder(ParamBuilder[LottieAnimationParams]):
     """Builder for LottieAnimationParams.
-    
+
     Provides a fluent interface for building Lottie animation parameters.
     """
-    
+
     def __init__(self):
         """Initialize the builder with the LottieAnimationParams class."""
         super().__init__(LottieAnimationParams)
-    
-    def with_frame_paths(self, frame_paths: List[str]) -> 'LottieAnimationParamBuilder':
+
+    def with_frame_paths(self, frame_paths: List[str]) -> "LottieAnimationParamBuilder":
         """Set the frame paths."""
         return self.with_param("frame_paths", frame_paths)
-    
-    def with_output_path(self, output_path: str) -> 'LottieAnimationParamBuilder':
+
+    def with_output_path(self, output_path: str) -> "LottieAnimationParamBuilder":
         """Set the output path."""
         return self.with_param("output_path", output_path)
-    
-    def with_dimensions(self, width: int, height: int) -> 'LottieAnimationParamBuilder':
+
+    def with_dimensions(self, width: int, height: int) -> "LottieAnimationParamBuilder":
         """Set the animation dimensions."""
         self.with_param("width", width)
         return self.with_param("height", height)
-    
-    def with_fps(self, fps: int) -> 'LottieAnimationParamBuilder':
+
+    def with_fps(self, fps: int) -> "LottieAnimationParamBuilder":
         """Set the frames per second."""
         return self.with_param("fps", fps)
-    
-    def with_color_mode(self, color_mode: Union[LottieColorMode, str]) -> 'LottieAnimationParamBuilder':
+
+    def with_color_mode(
+        self, color_mode: Union[LottieColorMode, str]
+    ) -> "LottieAnimationParamBuilder":
         """Set the color mode."""
         if isinstance(color_mode, str):
             color_mode = LottieColorMode(color_mode)
         return self.with_param("color_mode", color_mode)
-    
-    def with_background_color(self, color: str) -> 'LottieAnimationParamBuilder':
+
+    def with_background_color(self, color: str) -> "LottieAnimationParamBuilder":
         """Set the background color."""
         return self.with_param("background_color", color)
-    
-    def with_optimization_level(self, level: Union[LottieOptimizationLevel, int]) -> 'LottieAnimationParamBuilder':
+
+    def with_optimization_level(
+        self, level: Union[LottieOptimizationLevel, int]
+    ) -> "LottieAnimationParamBuilder":
         """Set the optimization level."""
         if isinstance(level, int):
             level = LottieOptimizationLevel(level)
         return self.with_param("optimization_level", level)
-    
-    def with_shape_simplification(self, simplify: bool, tolerance: float = 1.0) -> 'LottieAnimationParamBuilder':
+
+    def with_shape_simplification(
+        self, simplify: bool, tolerance: float = 1.0
+    ) -> "LottieAnimationParamBuilder":
         """Set shape simplification options."""
         self.with_param("simplify_shapes", simplify)
         return self.with_param("simplify_tolerance", tolerance)
-    
-    def with_progress_callback(self, callback: Callable[[int], None]) -> 'LottieAnimationParamBuilder':
+
+    def with_progress_callback(
+        self, callback: Callable[[int], None]
+    ) -> "LottieAnimationParamBuilder":
         """Set the progress callback function."""
         return self.with_param("progress_callback", callback)
 
 
 class SVGConversionParams(BaseParams):
     """Parameters for SVG conversion to Lottie.
-    
+
     This parameter object encapsulates all options for converting SVG files to Lottie,
     replacing the need for numerous function parameters.
     """
+
     # Required parameters
     svg_paths: List[str] = Field(..., description="List of paths to SVG files")
-    output_path: str = Field(..., description="Path to save the output Lottie animation")
-    
+    output_path: str = Field(
+        ..., description="Path to save the output Lottie animation"
+    )
+
     # Optional parameters with defaults
     width: int = Field(default=512, description="Width of the Lottie animation")
     height: int = Field(default=512, description="Height of the Lottie animation")
     fps: int = Field(default=24, description="Frames per second")
-    background_color: Optional[str] = Field(default=None, description="Background color in hex format")
-    optimize: bool = Field(default=True, description="Whether to optimize the Lottie file")
-    optimize_shapes: bool = Field(default=True, description="Whether to optimize shapes")
-    combine_paths: bool = Field(default=True, description="Whether to combine paths where possible")
-    duration: float = Field(default=1.0, description="Duration of each frame in seconds")
-    
+    background_color: Optional[str] = Field(
+        default=None, description="Background color in hex format"
+    )
+    optimize: bool = Field(
+        default=True, description="Whether to optimize the Lottie file"
+    )
+    optimize_shapes: bool = Field(
+        default=True, description="Whether to optimize shapes"
+    )
+    combine_paths: bool = Field(
+        default=True, description="Whether to combine paths where possible"
+    )
+    duration: float = Field(
+        default=1.0, description="Duration of each frame in seconds"
+    )
+
     # Callback for progress tracking
     progress_callback: Optional[Callable[[int], None]] = Field(
-        default=None, 
-        description="Callback function for progress updates"
+        default=None, description="Callback function for progress updates"
     )
-    
-    @validator('svg_paths')
+
+    @validator("svg_paths")
     def validate_svg_paths(cls, v):
         """Validate that SVG paths list is not empty."""
         if not v:
             raise ValueError("SVG paths list cannot be empty")
         return v
-    
-    @validator('output_path')
+
+    @validator("output_path")
     def validate_output_path(cls, v):
         """Validate that output path is not empty."""
         if not v or not v.strip():
             raise ValueError("Output path cannot be empty")
         return v
-    
-    @validator('width', 'height')
+
+    @validator("width", "height")
     def validate_dimensions(cls, v):
         """Validate that dimensions are positive."""
         if v <= 0:
             raise ValueError("Dimensions must be positive")
         return v
-    
-    @validator('fps')
+
+    @validator("fps")
     def validate_fps(cls, v):
         """Validate that fps is positive."""
         if v <= 0:
             raise ValueError("FPS must be positive")
         return v
-    
-    @validator('duration')
+
+    @validator("duration")
     def validate_duration(cls, v):
         """Validate that duration is positive."""
         if v <= 0:
@@ -215,55 +247,60 @@ class SVGConversionParams(BaseParams):
 
 class SVGConversionParamBuilder(ParamBuilder[SVGConversionParams]):
     """Builder for SVGConversionParams.
-    
+
     Provides a fluent interface for building SVG conversion parameters.
     """
-    
+
     def __init__(self):
         """Initialize the builder with the SVGConversionParams class."""
         super().__init__(SVGConversionParams)
-    
-    def with_svg_paths(self, svg_paths: List[str]) -> 'SVGConversionParamBuilder':
+
+    def with_svg_paths(self, svg_paths: List[str]) -> "SVGConversionParamBuilder":
         """Set the SVG paths."""
         return self.with_param("svg_paths", svg_paths)
-    
-    def with_output_path(self, output_path: str) -> 'SVGConversionParamBuilder':
+
+    def with_output_path(self, output_path: str) -> "SVGConversionParamBuilder":
         """Set the output path."""
         return self.with_param("output_path", output_path)
-    
-    def with_dimensions(self, width: int, height: int) -> 'SVGConversionParamBuilder':
+
+    def with_dimensions(self, width: int, height: int) -> "SVGConversionParamBuilder":
         """Set the animation dimensions."""
         self.with_param("width", width)
         return self.with_param("height", height)
-    
-    def with_fps(self, fps: int) -> 'SVGConversionParamBuilder':
+
+    def with_fps(self, fps: int) -> "SVGConversionParamBuilder":
         """Set the frames per second."""
         return self.with_param("fps", fps)
-    
-    def with_background_color(self, color: str) -> 'SVGConversionParamBuilder':
+
+    def with_background_color(self, color: str) -> "SVGConversionParamBuilder":
         """Set the background color."""
         return self.with_param("background_color", color)
-    
-    def with_optimization(self, optimize: bool, optimize_shapes: bool = True) -> 'SVGConversionParamBuilder':
+
+    def with_optimization(
+        self, optimize: bool, optimize_shapes: bool = True
+    ) -> "SVGConversionParamBuilder":
         """Set optimization options."""
         self.with_param("optimize", optimize)
         return self.with_param("optimize_shapes", optimize_shapes)
-    
-    def with_path_combining(self, combine_paths: bool) -> 'SVGConversionParamBuilder':
+
+    def with_path_combining(self, combine_paths: bool) -> "SVGConversionParamBuilder":
         """Set whether to combine paths."""
         return self.with_param("combine_paths", combine_paths)
-    
-    def with_duration(self, duration: float) -> 'SVGConversionParamBuilder':
+
+    def with_duration(self, duration: float) -> "SVGConversionParamBuilder":
         """Set the frame duration."""
         return self.with_param("duration", duration)
-    
-    def with_progress_callback(self, callback: Callable[[int], None]) -> 'SVGConversionParamBuilder':
+
+    def with_progress_callback(
+        self, callback: Callable[[int], None]
+    ) -> "SVGConversionParamBuilder":
         """Set the progress callback function."""
         return self.with_param("progress_callback", callback)
 
 
 class ImageTracingStrategy(str, Enum):
     """Strategies for image tracing."""
+
     BASIC = "basic"
     STANDARD = "standard"
     ADVANCED = "advanced"
@@ -271,57 +308,53 @@ class ImageTracingStrategy(str, Enum):
 
 class ImageTracingParams(BaseParams):
     """Parameters for image tracing.
-    
+
     This parameter object encapsulates all options for tracing raster images to vector formats,
     replacing the need for numerous function parameters.
     """
+
     # Required parameters
     input_path: str = Field(..., description="Path to the input image")
     output_path: str = Field(..., description="Path to save the output vector file")
-    
+
     # Optional parameters with defaults
     strategy: ImageTracingStrategy = Field(
-        default=ImageTracingStrategy.ADVANCED, 
-        description="Tracing strategy to use"
+        default=ImageTracingStrategy.ADVANCED, description="Tracing strategy to use"
     )
     simplify_tolerance: float = Field(
-        default=1.0, 
-        description="Tolerance for path simplification (higher = more simplification)"
+        default=1.0,
+        description="Tolerance for path simplification (higher = more simplification)",
     )
     color_mode: LottieColorMode = Field(
-        default=LottieColorMode.COLORED, 
-        description="Color mode for the traced output"
+        default=LottieColorMode.COLORED, description="Color mode for the traced output"
     )
     embed_image: bool = Field(
-        default=True, 
-        description="Whether to embed the original image in the output"
+        default=True, description="Whether to embed the original image in the output"
     )
     image_quality: int = Field(
-        default=90, 
-        description="Quality of the embedded image (0-100)"
+        default=90, description="Quality of the embedded image (0-100)"
     )
-    
+
     # Callback for progress tracking
     progress_callback: Optional[Callable[[float, Optional[str]], None]] = Field(
-        default=None, 
-        description="Callback function for progress updates"
+        default=None, description="Callback function for progress updates"
     )
-    
-    @validator('input_path', 'output_path')
+
+    @validator("input_path", "output_path")
     def validate_paths(cls, v):
         """Validate that paths are not empty."""
         if not v or not v.strip():
             raise ValueError("Path cannot be empty")
         return v
-    
-    @validator('simplify_tolerance')
+
+    @validator("simplify_tolerance")
     def validate_simplify_tolerance(cls, v):
         """Validate that simplify tolerance is positive."""
         if v <= 0:
             raise ValueError("Simplify tolerance must be positive")
         return v
-    
-    @validator('image_quality')
+
+    @validator("image_quality")
     def validate_image_quality(cls, v):
         """Validate that image quality is between 0 and 100."""
         if v < 0 or v > 100:
@@ -331,50 +364,59 @@ class ImageTracingParams(BaseParams):
 
 class ImageTracingParamBuilder(ParamBuilder[ImageTracingParams]):
     """Builder for ImageTracingParams.
-    
+
     Provides a fluent interface for building image tracing parameters.
     """
-    
+
     def __init__(self):
         """Initialize the builder with the ImageTracingParams class."""
         super().__init__(ImageTracingParams)
-    
-    def with_input_path(self, input_path: str) -> 'ImageTracingParamBuilder':
+
+    def with_input_path(self, input_path: str) -> "ImageTracingParamBuilder":
         """Set the input path."""
         return self.with_param("input_path", input_path)
-    
-    def with_output_path(self, output_path: str) -> 'ImageTracingParamBuilder':
+
+    def with_output_path(self, output_path: str) -> "ImageTracingParamBuilder":
         """Set the output path."""
         return self.with_param("output_path", output_path)
-    
-    def with_strategy(self, strategy: Union[ImageTracingStrategy, str]) -> 'ImageTracingParamBuilder':
+
+    def with_strategy(
+        self, strategy: Union[ImageTracingStrategy, str]
+    ) -> "ImageTracingParamBuilder":
         """Set the tracing strategy."""
         if isinstance(strategy, str):
             strategy = ImageTracingStrategy(strategy)
         return self.with_param("strategy", strategy)
-    
-    def with_simplify_tolerance(self, tolerance: float) -> 'ImageTracingParamBuilder':
+
+    def with_simplify_tolerance(self, tolerance: float) -> "ImageTracingParamBuilder":
         """Set the simplify tolerance."""
         return self.with_param("simplify_tolerance", tolerance)
-    
-    def with_color_mode(self, color_mode: Union[LottieColorMode, str]) -> 'ImageTracingParamBuilder':
+
+    def with_color_mode(
+        self, color_mode: Union[LottieColorMode, str]
+    ) -> "ImageTracingParamBuilder":
         """Set the color mode."""
         if isinstance(color_mode, str):
             color_mode = LottieColorMode(color_mode)
         return self.with_param("color_mode", color_mode)
-    
-    def with_embed_image(self, embed: bool, quality: int = 90) -> 'ImageTracingParamBuilder':
+
+    def with_embed_image(
+        self, embed: bool, quality: int = 90
+    ) -> "ImageTracingParamBuilder":
         """Set whether to embed the original image and its quality."""
         self.with_param("embed_image", embed)
         return self.with_param("image_quality", quality)
-    
-    def with_progress_callback(self, callback: Callable[[float, Optional[str]], None]) -> 'ImageTracingParamBuilder':
+
+    def with_progress_callback(
+        self, callback: Callable[[float, Optional[str]], None]
+    ) -> "ImageTracingParamBuilder":
         """Set the progress callback function."""
         return self.with_param("progress_callback", callback)
 
 
 class VideoProcessingStrategy(str, Enum):
     """Strategies for video processing."""
+
     STANDARD = "standard"  # Standard processing with balanced quality and speed
     HIGH_QUALITY = "high_quality"  # High quality processing with more detail
     FAST = "fast"  # Fast processing with lower quality
@@ -382,56 +424,66 @@ class VideoProcessingStrategy(str, Enum):
 
 class VideoProcessingParams(BaseParams):
     """Parameters for video processing.
-    
+
     This parameter object encapsulates all options for processing videos into Lottie animations,
     replacing the need for numerous function parameters.
     """
+
     # Required parameters
     file_path: str = Field(..., description="Path to the video file")
     temp_dir: str = Field(..., description="Temporary directory for processing")
-    
+
     # Optional parameters with defaults
     fps: int = Field(default=24, description="Frames per second for the animation")
     width: Optional[int] = Field(default=None, description="Width of the animation")
     height: Optional[int] = Field(default=None, description="Height of the animation")
-    original_filename: Optional[str] = Field(default=None, description="Original filename of the uploaded video")
+    original_filename: Optional[str] = Field(
+        default=None, description="Original filename of the uploaded video"
+    )
     strategy: VideoProcessingStrategy = Field(
         default=VideoProcessingStrategy.STANDARD,
-        description="Processing strategy to use"
+        description="Processing strategy to use",
     )
-    max_frames: int = Field(default=100, description="Maximum number of frames to process")
-    optimize: bool = Field(default=True, description="Whether to optimize the Lottie animation")
-    compress: bool = Field(default=True, description="Whether to compress the Lottie animation")
-    
+    max_frames: int = Field(
+        default=100, description="Maximum number of frames to process"
+    )
+    optimize: bool = Field(
+        default=True, description="Whether to optimize the Lottie animation"
+    )
+    compress: bool = Field(
+        default=True, description="Whether to compress the Lottie animation"
+    )
+
     # Callback for progress tracking
-    task_id: Optional[str] = Field(default=None, description="Task ID for progress tracking")
-    progress_callback: Optional[Callable] = Field(
-        default=None,
-        description="Callback function for progress updates"
+    task_id: Optional[str] = Field(
+        default=None, description="Task ID for progress tracking"
     )
-    
-    @validator('file_path', 'temp_dir')
+    progress_callback: Optional[Callable] = Field(
+        default=None, description="Callback function for progress updates"
+    )
+
+    @validator("file_path", "temp_dir")
     def validate_paths(cls, v):
         """Validate that paths are not empty."""
         if not v or not v.strip():
             raise ValueError("Path cannot be empty")
         return v
-    
-    @validator('fps')
+
+    @validator("fps")
     def validate_fps(cls, v):
         """Validate that fps is positive."""
         if v <= 0:
             raise ValueError("FPS must be positive")
         return v
-    
-    @validator('width', 'height')
+
+    @validator("width", "height")
     def validate_dimensions(cls, v):
         """Validate that dimensions are positive if provided."""
         if v is not None and v <= 0:
             raise ValueError("Dimensions must be positive")
         return v
-    
-    @validator('max_frames')
+
+    @validator("max_frames")
     def validate_max_frames(cls, v):
         """Validate that max_frames is positive."""
         if v <= 0:
@@ -441,54 +493,62 @@ class VideoProcessingParams(BaseParams):
 
 class VideoProcessingParamBuilder(ParamBuilder[VideoProcessingParams]):
     """Builder for VideoProcessingParams.
-    
+
     Provides a fluent interface for building video processing parameters.
     """
-    
+
     def __init__(self):
         """Initialize the builder with the VideoProcessingParams class."""
         super().__init__(VideoProcessingParams)
-    
-    def with_file_path(self, file_path: str) -> 'VideoProcessingParamBuilder':
+
+    def with_file_path(self, file_path: str) -> "VideoProcessingParamBuilder":
         """Set the file path."""
         return self.with_param("file_path", file_path)
-    
-    def with_temp_dir(self, temp_dir: str) -> 'VideoProcessingParamBuilder':
+
+    def with_temp_dir(self, temp_dir: str) -> "VideoProcessingParamBuilder":
         """Set the temporary directory."""
         return self.with_param("temp_dir", temp_dir)
-    
-    def with_fps(self, fps: int) -> 'VideoProcessingParamBuilder':
+
+    def with_fps(self, fps: int) -> "VideoProcessingParamBuilder":
         """Set the frames per second."""
         return self.with_param("fps", fps)
-    
-    def with_dimensions(self, width: Optional[int], height: Optional[int]) -> 'VideoProcessingParamBuilder':
+
+    def with_dimensions(
+        self, width: Optional[int], height: Optional[int]
+    ) -> "VideoProcessingParamBuilder":
         """Set the animation dimensions."""
         self.with_param("width", width)
         return self.with_param("height", height)
-    
-    def with_original_filename(self, filename: str) -> 'VideoProcessingParamBuilder':
+
+    def with_original_filename(self, filename: str) -> "VideoProcessingParamBuilder":
         """Set the original filename."""
         return self.with_param("original_filename", filename)
-    
-    def with_strategy(self, strategy: Union[VideoProcessingStrategy, str]) -> 'VideoProcessingParamBuilder':
+
+    def with_strategy(
+        self, strategy: Union[VideoProcessingStrategy, str]
+    ) -> "VideoProcessingParamBuilder":
         """Set the processing strategy."""
         if isinstance(strategy, str):
             strategy = VideoProcessingStrategy(strategy)
         return self.with_param("strategy", strategy)
-    
-    def with_max_frames(self, max_frames: int) -> 'VideoProcessingParamBuilder':
+
+    def with_max_frames(self, max_frames: int) -> "VideoProcessingParamBuilder":
         """Set the maximum number of frames."""
         return self.with_param("max_frames", max_frames)
-    
-    def with_optimization(self, optimize: bool, compress: bool = True) -> 'VideoProcessingParamBuilder':
+
+    def with_optimization(
+        self, optimize: bool, compress: bool = True
+    ) -> "VideoProcessingParamBuilder":
         """Set optimization options."""
         self.with_param("optimize", optimize)
         return self.with_param("compress", compress)
-    
-    def with_task_id(self, task_id: str) -> 'VideoProcessingParamBuilder':
+
+    def with_task_id(self, task_id: str) -> "VideoProcessingParamBuilder":
         """Set the task ID for progress tracking."""
         return self.with_param("task_id", task_id)
-    
-    def with_progress_callback(self, callback: Callable) -> 'VideoProcessingParamBuilder':
+
+    def with_progress_callback(
+        self, callback: Callable
+    ) -> "VideoProcessingParamBuilder":
         """Set the progress callback function."""
         return self.with_param("progress_callback", callback)

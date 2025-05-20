@@ -1,6 +1,5 @@
 """Test configuration for the Video Converter project."""
 
-import os
 import sys
 import pytest
 from pathlib import Path
@@ -9,10 +8,12 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+
 @pytest.fixture
 def test_data_dir():
     """Return the path to the test data directory."""
     return Path(__file__).parent / "data"
+
 
 @pytest.fixture
 def temp_output_dir(tmp_path):
@@ -21,11 +22,13 @@ def temp_output_dir(tmp_path):
     output_dir.mkdir(exist_ok=True)
     return output_dir
 
+
 @pytest.fixture
 def sample_video_path(test_data_dir):
     """Return the path to a sample video file for testing."""
     # This is a placeholder - we'll need to create this file
     return test_data_dir / "sample.mp4"
+
 
 @pytest.fixture
 def sample_image_path(test_data_dir):
@@ -33,11 +36,13 @@ def sample_image_path(test_data_dir):
     # This is a placeholder - we'll need to create this file
     return test_data_dir / "sample.png"
 
+
 @pytest.fixture
 def sample_svg_path(test_data_dir):
     """Return the path to a sample SVG file for testing."""
     # This is a placeholder - we'll need to create this file
     return test_data_dir / "sample.svg"
+
 
 @pytest.fixture
 def mock_environment(monkeypatch):
@@ -48,10 +53,10 @@ def mock_environment(monkeypatch):
         "R2_SECRET_ACCESS_KEY": "test_secret_key",
         "R2_BUCKET_NAME": "test-bucket",
         "R2_PATH_PREFIX": "test-prefix",
-        "R2_URL": "https://cdn.example.com"
+        "R2_URL": "https://cdn.example.com",
     }
-    
+
     for key, value in env_vars.items():
         monkeypatch.setenv(key, value)
-    
+
     return env_vars

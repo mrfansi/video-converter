@@ -8,35 +8,51 @@ between functions.
 
 from app.models.base_params import BaseParams, ParamBuilder
 from app.models.video_params import (
-    VideoQuality, VideoResolution, VideoFormat,
-    VideoConversionParams, VideoConversionParamBuilder
+    VideoQuality,
+    VideoResolution,
+    VideoFormat,
+    VideoConversionParams,
+    VideoConversionParamBuilder,
 )
 from app.models.lottie_params import (
-    LottieColorMode, LottieOptimizationLevel,
-    LottieAnimationParams, LottieAnimationParamBuilder,
-    SVGConversionParams, SVGConversionParamBuilder
+    LottieColorMode,
+    LottieOptimizationLevel,
+    LottieAnimationParams,
+    LottieAnimationParamBuilder,
+    SVGConversionParams,
+    SVGConversionParamBuilder,
 )
 from app.models.task_params import (
-    TaskStatus, TaskType,
-    TaskParams, TaskParamBuilder,
-    TaskUpdateParams, TaskUpdateParamBuilder
+    TaskStatus,
+    TaskType,
+    TaskParams,
+    TaskParamBuilder,
+    TaskUpdateParams,
+    TaskUpdateParamBuilder,
 )
 
 __all__ = [
     # Base classes
-    'BaseParams', 'ParamBuilder',
-    
+    "BaseParams",
+    "ParamBuilder",
     # Video conversion
-    'VideoQuality', 'VideoResolution', 'VideoFormat',
-    'VideoConversionParams', 'VideoConversionParamBuilder',
-    
+    "VideoQuality",
+    "VideoResolution",
+    "VideoFormat",
+    "VideoConversionParams",
+    "VideoConversionParamBuilder",
     # Lottie animation
-    'LottieColorMode', 'LottieOptimizationLevel',
-    'LottieAnimationParams', 'LottieAnimationParamBuilder',
-    'SVGConversionParams', 'SVGConversionParamBuilder',
-    
+    "LottieColorMode",
+    "LottieOptimizationLevel",
+    "LottieAnimationParams",
+    "LottieAnimationParamBuilder",
+    "SVGConversionParams",
+    "SVGConversionParamBuilder",
     # Task queue
-    'TaskStatus', 'TaskType',
-    'TaskParams', 'TaskParamBuilder',
-    'TaskUpdateParams', 'TaskUpdateParamBuilder'
+    "TaskStatus",
+    "TaskType",
+    "TaskParams",
+    "TaskParamBuilder",
+    "TaskUpdateParams",
+    "TaskUpdateParamBuilder",
 ]

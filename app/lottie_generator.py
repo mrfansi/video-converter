@@ -1,14 +1,18 @@
-import os
-import json
 import logging
 from typing import List, Dict, Any, Optional
+from app.lottie import LottieGeneratorFacade
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Import the new SOLID-based implementation
-from app.lottie import LottieGeneratorFacade
+# (Already imported at the top of the file)
+
+# Constants for default settings
+DEFAULT_FRAME_RATE = 30
+DEFAULT_WIDTH = 512
+DEFAULT_HEIGHT = 512
 
 # Create a global facade instance for compatibility
 _facade = LottieGeneratorFacade()
@@ -19,16 +23,18 @@ _facade = LottieGeneratorFacade()
 logger.info("Using SOLID-based Lottie generator implementation via compatibility layer")
 
 
-def trace_png_to_svg(png_path: str, output_dir: str, simplify_tolerance: float = 1.0) -> str:
+def trace_png_to_svg(
+    png_path: str, output_dir: str, simplify_tolerance: float = 1.0
+) -> str:
     """
     Compatibility function that forwards to the new SOLID-based implementation.
     Traces a PNG image to SVG using OpenCV contour detection.
-    
+
     Args:
         png_path: Path to the PNG image
         output_dir: Directory to save the SVG file
         simplify_tolerance: Tolerance for path simplification
-        
+
     Returns:
         Path to the SVG file
     """
@@ -39,40 +45,44 @@ def parse_svg_to_paths(svg_path: str) -> List[Dict[str, Any]]:
     """
     Compatibility function that forwards to the new SOLID-based implementation.
     Parse SVG file and extract paths in Lottie-compatible format
-    
+
     Args:
         svg_path: Path to the SVG file
-        
+
     Returns:
         List of paths in Lottie format
     """
     return _facade.svg_parser.parse_svg_to_paths(svg_path)
 
 
-def parse_svg_paths_to_lottie_format(svg_paths: List[str]) -> List[List[Dict[str, Any]]]:
+def parse_svg_paths_to_lottie_format(
+    svg_paths: List[str],
+) -> List[List[Dict[str, Any]]]:
     """
     Compatibility function that forwards to the new SOLID-based implementation.
     Parse multiple SVG files and extract paths in Lottie-compatible format
-    
+
     Args:
         svg_paths: List of paths to SVG files
-        
+
     Returns:
         List of frames, each containing a list of paths in Lottie format
     """
     return _facade.svg_parser.parse_svg_paths_to_lottie_format(svg_paths)
 
 
-def save_lottie_json(lottie_json: Dict[str, Any], output_path: str, compress: bool = True) -> str:
+def save_lottie_json(
+    lottie_json: Dict[str, Any], output_path: str, compress: bool = True
+) -> str:
     """
     Compatibility function that forwards to the new SOLID-based implementation.
     Save Lottie JSON to file with optional compression
-    
+
     Args:
         lottie_json: Lottie animation JSON
         output_path: Path to save the JSON file
         compress: Whether to compress the JSON output
-        
+
     Returns:
         Path to the saved JSON file
     """
@@ -90,7 +100,7 @@ def create_lottie_animation(
     """
     Compatibility function that forwards to the new SOLID-based implementation.
     Create a Lottie animation from a list of SVG files
-    
+
     Args:
         svg_paths: List of SVG file paths
         fps: Frames per second
@@ -98,13 +108,13 @@ def create_lottie_animation(
         height: Height of the animation (optional)
         max_frames: Maximum number of frames to include
         optimize: Whether to apply optimizations
-        
+
     Returns:
         Lottie animation JSON
     """
     # Parse SVG paths to get frame data
     frame_paths = _facade.svg_parser.parse_svg_paths_to_lottie_format(svg_paths)
-    
+
     # Create Lottie animation
     return _facade.lottie_generator.create_lottie_animation(
         frame_paths,
@@ -112,7 +122,7 @@ def create_lottie_animation(
         width=width,
         height=height,
         max_frames=max_frames,
-        optimize=optimize
+        optimize=optimize,
     )
 
 
@@ -127,7 +137,7 @@ def create_lottie_animation_manual(
     """
     Compatibility function that forwards to the new SOLID-based implementation.
     Create a Lottie animation from parsed SVG paths manually
-    
+
     Args:
         frame_paths: List of frames, each containing a list of paths
         fps: Frames per second
@@ -135,7 +145,7 @@ def create_lottie_animation_manual(
         height: Height of the animation
         max_frames: Maximum number of frames to include
         optimize: Whether to apply optimizations
-        
+
     Returns:
         Lottie animation JSON
     """
@@ -146,5 +156,5 @@ def create_lottie_animation_manual(
         width=width,
         height=height,
         max_frames=max_frames,
-        optimize=optimize
+        optimize=optimize,
     )

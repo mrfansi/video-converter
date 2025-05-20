@@ -4,14 +4,14 @@ from app.infrastructure.svg_parsing.parsing_strategies import (
     OptimizedSVGPathParsingStrategy,
     SimplifiedSVGPathParsingStrategy,
     EnhancedSVGPathParsingStrategy,
-    FallbackSVGPathParsingStrategy
+    FallbackSVGPathParsingStrategy,
 )
 
 __all__ = [
-    'SVGParserProcessor',
-    'StandardSVGPathParsingStrategy',
-    'OptimizedSVGPathParsingStrategy',
-    'SimplifiedSVGPathParsingStrategy',
-    'EnhancedSVGPathParsingStrategy',
-    'FallbackSVGPathParsingStrategy'
+    "SVGParserProcessor",
+    "StandardSVGPathParsingStrategy",
+    "OptimizedSVGPathParsingStrategy",
+    "SimplifiedSVGPathParsingStrategy",
+    "EnhancedSVGPathParsingStrategy",
+    "FallbackSVGPathParsingStrategy",
 ]

@@ -1,10 +1,12 @@
 import json
 from typing import Any
 
+
 class LottieJSONEncoder(json.JSONEncoder):
     """
     Custom JSON encoder for Lottie animations that handles non-serializable objects
     """
+
     def default(self, obj: Any) -> Any:
         # Handle methods and other non-serializable types
         if callable(obj):

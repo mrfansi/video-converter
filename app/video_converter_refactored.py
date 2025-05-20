@@ -4,13 +4,13 @@ This module provides refactored video conversion functions using the Strategy pa
 for improved maintainability and extensibility.
 """
 
-import os
-import time
 import logging
-from typing import Dict, Any, Optional, List, Callable
+from typing import Dict, Any, Optional
 
 from app.infrastructure.video_converter import VideoConverter
-from app.models.video_params import VideoConversionParams, VideoConversionParamBuilder, VideoFormat, VideoQuality
+from app.models.video_params import (
+    VideoConversionParamBuilder,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -28,14 +28,14 @@ def convert_video(
     audio_codec: Optional[str] = None,
     audio_bitrate: Optional[str] = None,
     task_id: Optional[str] = None,
-    progress_callback: Optional[callable] = None
+    progress_callback: Optional[callable] = None,
 ) -> Dict[str, Any]:
     """
     Convert a video file to another format with optimization options using the Strategy pattern.
-    
+
     This is a refactored version of the original convert_video function that uses
     the Strategy pattern for improved maintainability and extensibility.
-    
+
     Args:
         input_path (str): Path to the input video file
         output_dir (str): Directory to save the output video
@@ -50,20 +50,24 @@ def convert_video(
         audio_bitrate (Optional[str]): Audio bitrate (e.g., "128k")
         task_id (Optional[str]): Task ID for progress tracking
         progress_callback (Optional[callable]): Callback function for progress updates
-        
+
     Returns:
         Dict[str, Any]: Dictionary with output file information
     """
     try:
-        logger.info(f"Converting video {input_path} to {output_format} with {quality} quality")
-        
+        logger.info(
+            f"Converting video {input_path} to {output_format} with {quality} quality"
+        )
+
         # Create video conversion parameters using the builder pattern
-        params_builder = (VideoConversionParamBuilder()
+        params_builder = (
+            VideoConversionParamBuilder()
             .with_input_path(input_path)
             .with_output_dir(output_dir)
             .with_format(output_format)
-            .with_quality(quality))
-        
+            .with_quality(quality)
+        )
+
         # Add optional parameters if specified
         if width is not None and height is not None:
             params_builder.with_resolution(f"{width}x{height}")
@@ -77,17 +81,17 @@ def convert_video(
             params_builder.with_codecs(None, audio_codec)
         if task_id is not None and progress_callback is not None:
             params_builder.with_progress_callback(progress_callback)
-        
+
         # Build the parameters
         params = params_builder.build()
-        
+
         # Create video converter and convert video
         converter = VideoConverter()
         result = converter.convert_video(params)
-        
+
         logger.info(f"Successfully converted video to {result['output_path']}")
         return result
-        
+
     except Exception as e:
         logger.error(f"Error converting video: {str(e)}")
         raise
