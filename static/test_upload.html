@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Video to Lottie Upload Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      h1 {
+        color: #333;
+      }
+      form {
+        background-color: #f5f5f5;
+        padding: 20px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+      input,
+      select {
+        margin-bottom: 15px;
+        padding: 8px;
+        width: 100%;
+      }
+      input[type="file"] {
+        border: 1px solid #ddd;
+        padding: 10px;
+      }
+      input[type="submit"] {
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        cursor: pointer;
+        font-size: 16px;
+      }
+      input[type="submit"]:hover {
+        background-color: #45a049;
+      }
+      .result {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: #e9f7ef;
+        border-radius: 5px;
+        display: none;
+      }
+      .error {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+      .progress-container {
+        margin-top: 15px;
+        display: none;
+      }
+      .progress-bar {
+        width: 100%;
+        background-color: #e0e0e0;
+        border-radius: 4px;
+        height: 20px;
+        overflow: hidden;
+        margin-bottom: 10px;
+      }
+      .progress-fill {
+        height: 100%;
+        background-color: #4caf50;
+        width: 0%;
+        transition: width 0.3s ease;
+      }
+      .progress-step {
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+      .progress-details {
+        color: #666;
+        font-size: 14px;
+        margin-bottom: 15px;
+      }
+      .lottie-preview {
+        margin-top: 20px;
+        display: none;
+        text-align: center;
+      }
+      .thumbnail {
+        max-width: 100%;
+        border-radius: 4px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        margin-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Video to Lottie Upload Test</h1>
+
+    <form id="uploadForm" enctype="multipart/form-data">
+      <div>
+        <label for="file">Select Video File:</label>
+        <input
+          type="file"
+          id="file"
+          name="file"
+          accept=".mp4,.mov,.avi,.webm"
+          required
+        />
+      </div>
+
+      <div>
+        <label for="fps">Frames Per Second:</label>
+        <input type="number" id="fps" name="fps" value="30" min="1" max="30" />
+      </div>
+
+      <div>
+        <label for="width">Width:</label>
+        <input
+          type="number"
+          id="width"
+          name="width"
+          value="800"
+          min="100"
+          max="2000"
+        />
+      </div>
+
+      <div>
+        <label for="height">Height:</label>
+        <input
+          type="number"
+          id="height"
+          name="height"
+          value="600"
+          min="100"
+          max="2000"
+        />
+      </div>
+
+      <input type="submit" value="Upload and Convert" />
+    </form>
+
+    <div id="result" class="result">
+      <h3>Result:</h3>
+      <pre id="resultContent"></pre>
+
+      <div id="progressContainer" class="progress-container">
+        <h3>Processing Progress:</h3>
+        <div class="progress-step" id="progressStep">Initializing...</div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="progress-details" id="progressDetails"></div>
+      </div>
+
+      <div id="lottiePreview" class="lottie-preview">
+        <h3>Preview:</h3>
+        <img id="thumbnailPreview" class="thumbnail" />
+        <div
+          id="lottieContainer"
+          style="width: 400px; height: 400px; margin: 0 auto"
+        ></div>
+      </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.9.6/lottie.min.js"></script>
+    <script>
+      document
+        .getElementById("uploadForm")
+        .addEventListener("submit", async function (e) {
+          e.preventDefault();
+
+          const formData = new FormData(this);
+          const fps = document.getElementById("fps").value;
+          const width = document.getElementById("width").value;
+          const height = document.getElementById("height").value;
+
+          const url = `http://localhost:8000/upload?fps=${fps}&width=${width}&height=${height}`;
+
+          const resultDiv = document.getElementById("result");
+          const resultContent = document.getElementById("resultContent");
+          const progressContainer =
+            document.getElementById("progressContainer");
+          const progressStep = document.getElementById("progressStep");
+          const progressFill = document.getElementById("progressFill");
+          const progressDetails = document.getElementById("progressDetails");
+          const lottiePreview = document.getElementById("lottiePreview");
+          const thumbnailPreview = document.getElementById("thumbnailPreview");
+          const lottieContainer = document.getElementById("lottieContainer");
+
+          // Reset UI
+          resultDiv.classList.remove("error");
+          progressContainer.style.display = "none";
+          lottiePreview.style.display = "none";
+          lottieContainer.innerHTML = "";
+
+          try {
+            resultDiv.style.display = "block";
+            resultContent.textContent = "Uploading video...";
+
+            const response = await fetch(url, {
+              method: "POST",
+              body: formData,
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+              resultDiv.classList.remove("error");
+              resultContent.textContent = JSON.stringify(data, null, 2);
+
+              // Check if this is a task response
+              if (data.task_id && data.status_endpoint) {
+                // Show progress container
+                progressContainer.style.display = "block";
+                progressStep.textContent = "Initializing...";
+                progressFill.style.width = "0%";
+                progressDetails.textContent = "Starting video processing...";
+
+                // Start polling for task status
+                pollTaskStatus(data.status_endpoint);
+              }
+            } else {
+              resultDiv.classList.add("error");
+              resultContent.textContent = `Error: ${JSON.stringify(
+                data,
+                null,
+                2
+              )}`;
+            }
+          } catch (error) {
+            resultDiv.classList.add("error");
+            resultContent.textContent = `Error: ${error.message}`;
+          }
+        });
+
+      // Function to poll task status
+      async function pollTaskStatus(statusEndpoint) {
+        const baseUrl = "http://localhost:8000"; // Base API URL
+        const fullUrl = baseUrl + statusEndpoint;
+        let lastStep = "";
+        let lastPercent = 0;
+
+        const pollInterval = setInterval(async () => {
+          try {
+            const response = await fetch(fullUrl);
+            const data = await response.json();
+
+            // Extract progress information
+            const status = data.status;
+            const progress = data.progress || {};
+            const currentStep = progress.current_step || "";
+            const percent = progress.percent || 0;
+            const details = progress.details || "";
+
+            // Update progress UI if there's a change
+            if (
+              currentStep !== lastStep ||
+              Math.abs(percent - lastPercent) >= 5
+            ) {
+              document.getElementById("progressStep").textContent = currentStep;
+              document.getElementById(
+                "progressFill"
+              ).style.width = `${percent}%`;
+              document.getElementById("progressDetails").textContent = details;
+
+              // Update last values
+              lastStep = currentStep;
+              lastPercent = percent;
+            }
+
+            // Check if task is complete
+            if (status === "completed" && data.result) {
+              clearInterval(pollInterval);
+
+              // Update progress to 100%
+              document.getElementById("progressStep").textContent = "Completed";
+              document.getElementById("progressFill").style.width = "100%";
+              document.getElementById("progressDetails").textContent =
+                "Processing complete!";
+
+              // Show preview
+              const result = data.result;
+              if (result.url) {
+                showLottiePreview(result.url, result.thumbnail_url);
+              }
+            } else if (status === "failed") {
+              clearInterval(pollInterval);
+
+              // Show error
+              document.getElementById("progressStep").textContent = "Failed";
+              document.getElementById("progressDetails").textContent =
+                data.error || "Processing failed";
+              document.getElementById(
+                "progressContainer"
+              ).style.backgroundColor = "#f8d7da";
+            }
+          } catch (error) {
+            console.error("Error polling task status:", error);
+          }
+        }, 2000); // Poll every 2 seconds
+      }
+
+      // Function to display Lottie preview
+      function showLottiePreview(lottieUrl, thumbnailUrl) {
+        const lottiePreview = document.getElementById("lottiePreview");
+        const thumbnailPreview = document.getElementById("thumbnailPreview");
+        const lottieContainer = document.getElementById("lottieContainer");
+
+        // Show preview container
+        lottiePreview.style.display = "block";
+
+        // Show thumbnail if available
+        if (thumbnailUrl) {
+          thumbnailPreview.src = thumbnailUrl;
+          thumbnailPreview.style.display = "block";
+        } else {
+          thumbnailPreview.style.display = "none";
+        }
+
+        // Load Lottie animation
+        lottie.loadAnimation({
+          container: lottieContainer,
+          renderer: "svg",
+          loop: true,
+          autoplay: true,
+          path: lottieUrl,
+        });
+      }
+    </script>
+  </body>
+</html>

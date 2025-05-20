@@ -1,0 +1,15 @@
+[phases.setup]
+aptPkgs = ["ffmpeg", "python3-opencv", "libgl1-mesa-glx", "libglib2.0-0"]
+
+[phases.install]
+cmds = ["pip install --upgrade pip", "pip install -r requirements.txt"]
+
+[start]
+cmd = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+
+[variables]
+PORT = "8000"
+
+[nixpacks]
+choose-nixpacks = "python"
+python-version = "3.12"
