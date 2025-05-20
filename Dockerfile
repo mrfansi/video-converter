@@ -16,4 +16,4 @@ COPY . /app
 
 RUN python -m venv /opt/venv && . /opt/venv/bin/activate && pip install -r requirements.txt
 
-CMD ["/opt/venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--root-path", "/video-converter"]
+CMD ["/opt/venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
