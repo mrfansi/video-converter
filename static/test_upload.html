@@ -178,7 +178,7 @@
           const width = document.getElementById("width").value;
           const height = document.getElementById("height").value;
 
-          const url = `http://localhost:8000/upload?fps=${fps}&width=${width}&height=${height}`;
+          const url = `/video-converter/upload?fps=${fps}&width=${width}&height=${height}`;
 
           const resultDiv = document.getElementById("result");
           const resultContent = document.getElementById("resultContent");
@@ -239,7 +239,7 @@
 
       // Function to poll task status
       async function pollTaskStatus(statusEndpoint) {
-        const baseUrl = "http://localhost:8000"; // Base API URL
+        const baseUrl = "http://localhost:8000"; // Base API URL - statusEndpoint already includes prefix
         const fullUrl = baseUrl + statusEndpoint;
         let lastStep = "";
         let lastPercent = 0;

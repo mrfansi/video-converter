@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Format Converter Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .form-container {
+            flex: 1;
+            min-width: 300px;
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .result-container {
+            flex: 1;
+            min-width: 300px;
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .progress-container {
+            margin-top: 20px;
+            display: none;
+        }
+        .progress-bar {
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #3498db;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .progress-text {
+            font-size: 14px;
+            color: #6c757d;
+        }
+        .result-box {
+            margin-top: 20px;
+            display: none;
+        }
+        .video-preview {
+            width: 100%;
+            max-height: 300px;
+            margin-top: 15px;
+            border-radius: 4px;
+        }
+        .thumbnail-preview {
+            max-width: 200px;
+            margin-top: 15px;
+            border-radius: 4px;
+        }
+        .info-box {
+            background-color: #e8f4fd;
+            border-left: 4px solid #3498db;
+            padding: 10px 15px;
+            margin-bottom: 20px;
+            border-radius: 0 4px 4px 0;
+        }
+        .error-message {
+            color: #e74c3c;
+            background-color: #fadbd8;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            display: none;
+        }
+        .advanced-options {
+            margin-top: 15px;
+            border-top: 1px solid #ddd;
+            padding-top: 15px;
+        }
+        .advanced-toggle {
+            background: none;
+            border: none;
+            color: #3498db;
+            cursor: pointer;
+            padding: 0;
+            font-size: 14px;
+            text-decoration: underline;
+        }
+        .advanced-fields {
+            display: none;
+            margin-top: 15px;
+        }
+        .format-info {
+            font-size: 14px;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+        .video-details {
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        .video-details div {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Video Format Converter</h1>
+    
+    <div class="info-box">
+        <p>This tool allows you to convert videos between different formats with optimization options. 
+        Upload a video file, select your desired output format and quality settings, and click Convert.</p>
+    </div>
+    
+    <div class="container">
+        <div class="form-container">
+            <form id="upload-form">
+                <div class="form-group">
+                    <label for="file">Select Video File:</label>
+                    <input type="file" id="file" name="file" accept=".mp4,.mov,.avi,.webm,.mkv,.flv,.wmv,.m4v" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="output_format">Output Format:</label>
+                    <select id="output_format" name="output_format" required>
+                        <option value="mp4">MP4 (H.264)</option>
+                        <option value="webm">WebM (VP9)</option>
+                        <option value="mov">MOV (QuickTime)</option>
+                        <option value="avi">AVI</option>
+                        <option value="mkv">MKV (Matroska)</option>
+                        <option value="flv">FLV (Flash Video)</option>
+                    </select>
+                    <div class="format-info" id="format-info">MP4 is widely compatible with most devices and platforms.</div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="quality">Quality:</label>
+                    <select id="quality" name="quality">
+                        <option value="low">Low (Smaller file size)</option>
+                        <option value="medium" selected>Medium (Balanced)</option>
+                        <option value="high">High (Better quality)</option>
+                        <option value="veryhigh">Very High (Best quality)</option>
+                    </select>
+                </div>
+                
+                <button type="button" class="advanced-toggle" id="advanced-toggle">Show Advanced Options</button>
+                
+                <div class="advanced-fields" id="advanced-fields">
+                    <div class="form-group">
+                        <label for="width">Width (pixels):</label>
+                        <input type="number" id="width" name="width" placeholder="Leave empty to maintain aspect ratio">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="height">Height (pixels):</label>
+                        <input type="number" id="height" name="height" placeholder="Leave empty to maintain aspect ratio">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="bitrate">Video Bitrate (e.g., 1M, 2M):</label>
+                        <input type="text" id="bitrate" name="bitrate" placeholder="Optional">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="preset">Encoding Preset:</label>
+                        <select id="preset" name="preset">
+                            <option value="ultrafast">Ultrafast (Lowest compression)</option>
+                            <option value="superfast">Superfast</option>
+                            <option value="veryfast">Very Fast</option>
+                            <option value="faster">Faster</option>
+                            <option value="fast">Fast</option>
+                            <option value="medium" selected>Medium (Balanced)</option>
+                            <option value="slow">Slow</option>
+                            <option value="slower">Slower</option>
+                            <option value="veryslow">Very Slow (Best compression)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="audio_bitrate">Audio Bitrate (e.g., 128k, 256k):</label>
+                        <input type="text" id="audio_bitrate" name="audio_bitrate" placeholder="Optional">
+                    </div>
+                </div>
+                
+                <button type="submit" id="submit-btn">Convert Video</button>
+                
+                <div class="error-message" id="error-message"></div>
+                
+                <div class="progress-container" id="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-bar-fill" id="progress-bar-fill"></div>
+                    </div>
+                    <div class="progress-text" id="progress-text">Initializing...</div>
+                </div>
+            </form>
+        </div>
+        
+        <div class="result-container">
+            <h2>Conversion Result</h2>
+            <p>Your converted video will appear here once processing is complete.</p>
+            
+            <div class="result-box" id="result-box">
+                <div id="video-details" class="video-details"></div>
+                
+                <h3>Video Preview</h3>
+                <video id="video-preview" class="video-preview" controls></video>
+                
+                <h3>Thumbnail</h3>
+                <img id="thumbnail-preview" class="thumbnail-preview">
+                
+                <div class="form-group">
+                    <label for="video-url">Download URL:</label>
+                    <input type="text" id="video-url" readonly>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('upload-form');
+            const fileInput = document.getElementById('file');
+            const outputFormatSelect = document.getElementById('output_format');
+            const formatInfo = document.getElementById('format-info');
+            const advancedToggle = document.getElementById('advanced-toggle');
+            const advancedFields = document.getElementById('advanced-fields');
+            const progressContainer = document.getElementById('progress-container');
+            const progressBarFill = document.getElementById('progress-bar-fill');
+            const progressText = document.getElementById('progress-text');
+            const resultBox = document.getElementById('result-box');
+            const videoPreview = document.getElementById('video-preview');
+            const thumbnailPreview = document.getElementById('thumbnail-preview');
+            const videoUrl = document.getElementById('video-url');
+            const videoDetails = document.getElementById('video-details');
+            const errorMessage = document.getElementById('error-message');
+            
+            // Format info text
+            const formatInfoText = {
+                'mp4': 'MP4 is widely compatible with most devices and platforms.',
+                'webm': 'WebM offers good compression and is ideal for web streaming.',
+                'mov': 'MOV is commonly used on Apple devices and professional video editing.',
+                'avi': 'AVI is an older format with wide compatibility but larger file sizes.',
+                'mkv': 'MKV can contain multiple audio and subtitle tracks, ideal for high-quality archiving.',
+                'flv': 'FLV is primarily used for streaming video on the web.'
+            };
+            
+            // Update format info when output format changes
+            outputFormatSelect.addEventListener('change', function() {
+                const format = this.value;
+                formatInfo.textContent = formatInfoText[format] || '';
+            });
+            
+            // Toggle advanced options
+            advancedToggle.addEventListener('click', function() {
+                if (advancedFields.style.display === 'block') {
+                    advancedFields.style.display = 'none';
+                    this.textContent = 'Show Advanced Options';
+                } else {
+                    advancedFields.style.display = 'block';
+                    this.textContent = 'Hide Advanced Options';
+                }
+            });
+            
+            // Handle form submission
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(form);
+                
+                // Clear previous errors
+                errorMessage.style.display = 'none';
+                errorMessage.textContent = '';
+                
+                // Show progress container
+                progressContainer.style.display = 'block';
+                progressBarFill.style.width = '0%';
+                progressText.textContent = 'Uploading video...';
+                
+                // Hide previous results
+                resultBox.style.display = 'none';
+                
+                // Submit the form
+                fetch('/video-converter/convert', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(data => {
+                            throw new Error(data.detail || 'Error uploading video');
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Task created:', data);
+                    
+                    // Start polling for task status
+                    const taskId = data.task_id;
+                    const statusEndpoint = data.status_endpoint;
+                    
+                    // Update progress text
+                    progressText.textContent = 'Processing video...';
+                    
+                    // Poll for task status
+                    pollTaskStatus(statusEndpoint);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    progressContainer.style.display = 'none';
+                    errorMessage.textContent = error.message;
+                    errorMessage.style.display = 'block';
+                });
+            });
+            
+            // Function to poll task status
+            function pollTaskStatus(statusEndpoint) {
+                fetch(statusEndpoint)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Task status:', data);
+                    
+                    // Update progress
+                    if (data.progress) {
+                        const percent = data.progress.percent || 0;
+                        progressBarFill.style.width = `${percent}%`;
+                        
+                        let progressDetails = data.progress.current_step || 'Processing';
+                        if (data.progress.details) {
+                            progressDetails += `: ${data.progress.details}`;
+                        }
+                        progressText.textContent = progressDetails;
+                    }
+                    
+                    // Check if task is complete
+                    if (data.status === 'completed' && data.result) {
+                        // Display results
+                        displayResults(data.result);
+                    } else if (data.status === 'failed') {
+                        // Display error
+                        progressContainer.style.display = 'none';
+                        errorMessage.textContent = data.error || 'Task failed';
+                        errorMessage.style.display = 'block';
+                    } else {
+                        // Continue polling
+                        setTimeout(() => pollTaskStatus(statusEndpoint), 1000);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error polling task status:', error);
+                    setTimeout(() => pollTaskStatus(statusEndpoint), 2000);
+                });
+            }
+            
+            // Function to display results
+            function displayResults(result) {
+                // Update progress
+                progressBarFill.style.width = '100%';
+                progressText.textContent = 'Conversion complete!';
+                
+                // Set video source
+                videoPreview.src = result.url;
+                videoUrl.value = result.url;
+                
+                // Set thumbnail if available
+                if (result.thumbnail_url) {
+                    thumbnailPreview.src = result.thumbnail_url;
+                    thumbnailPreview.style.display = 'block';
+                } else {
+                    thumbnailPreview.style.display = 'none';
+                }
+                
+                // Display video details
+                let detailsHtml = '';
+                if (result.format) {
+                    detailsHtml += `<div><strong>Format:</strong> ${result.format}</div>`;
+                }
+                if (result.size_bytes) {
+                    const sizeInMB = (result.size_bytes / (1024 * 1024)).toFixed(2);
+                    detailsHtml += `<div><strong>Size:</strong> ${sizeInMB} MB</div>`;
+                }
+                if (result.duration) {
+                    const minutes = Math.floor(result.duration / 60);
+                    const seconds = Math.floor(result.duration % 60);
+                    detailsHtml += `<div><strong>Duration:</strong> ${minutes}:${seconds.toString().padStart(2, '0')}</div>`;
+                }
+                videoDetails.innerHTML = detailsHtml;
+                
+                // Show result box
+                resultBox.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,10 +1,14 @@
 # Video Converter
 
-A production-ready backend service that converts video files into Lottie JSON animations and uploads them to Cloudflare R2 storage with background processing and real-time progress tracking.
+A production-ready backend service that converts video files into Lottie JSON animations and between different video formats with optimization options. Features background processing, real-time progress tracking, and Cloudflare R2 storage integration.
 
 ## Features
 
-- Convert videos (.mp4, .mov, .avi, .webm) to Lottie JSON animations
+- Convert videos (.mp4, .mov, .avi, .webm, .mkv, .flv, .wmv, .m4v) to Lottie JSON animations
+- Convert videos between different formats with optimization options:
+  - Multiple quality presets (low, medium, high, veryhigh)
+  - Configurable dimensions, bitrate, and encoding settings
+  - Advanced encoding options (CRF, preset, audio settings)
 - Background processing with real-time progress tracking
 - Configurable frame rate (fps) and dimensions
 - Automatic vector tracing using OpenCV
@@ -12,7 +16,7 @@ A production-ready backend service that converts video files into Lottie JSON an
 - Public access to uploaded files with branded URLs
 - Automatic thumbnail generation for previews
 - Returns publicly accessible URLs
-- Interactive test UI with progress visualization
+- Interactive test UIs with progress visualization
 - Comprehensive API documentation with Swagger UI
 
 ## Tech Stack
@@ -106,7 +110,7 @@ The service uses a background processing system to handle video conversions asyn
 The service includes an interactive test UI that demonstrates the video-to-lottie conversion process with real-time progress tracking:
 
 1. Start the server: `uvicorn app.main:app --reload`
-2. Open the test page in your browser: `http://localhost:8000/test`
+2. Open the test page in your browser: `http://localhost:8000/video-converter/test`
 3. Upload a video file and configure the conversion parameters
 4. Watch the real-time progress tracking as the video is processed
 5. When complete, view the Lottie animation directly in the browser
@@ -117,18 +121,18 @@ The service includes an interactive test UI that demonstrates the video-to-lotti
 
 The API provides comprehensive Swagger documentation at the following endpoints:
 
-- **Swagger UI:** `http://localhost:8000/docs`
-- **ReDoc:** `http://localhost:8000/redoc`
+- **Swagger UI:** `http://localhost:8000/video-converter/docs`
+- **ReDoc:** `http://localhost:8000/video-converter/redoc`
 
 These interactive documentation pages allow you to explore and test all available endpoints.
 
-### Upload Endpoint
+### Lottie Conversion Endpoint
 
-**Endpoint:** `POST /upload`
+**Endpoint:** `POST /video-converter/upload`
 
 **Form Parameters:**
 
-- `file`: Video file (.mp4, .mov, .avi, .webm)
+- `file`: Video file (.mp4, .mov, .avi, .webm, .mkv, .flv, .wmv, .m4v)
 
 **Query Parameters:**
 
@@ -139,7 +143,7 @@ These interactive documentation pages allow you to explore and test all availabl
 **Example Request:**
 
 ```bash
-curl -X POST "http://localhost:8000/upload?fps=30&width=800&height=600" \
+curl -X POST "http://localhost:8000/video-converter/upload?fps=30&width=800&height=600" \
   -H "Content-Type: multipart/form-data" \
   -F "file=@video.mp4"
 ```
@@ -154,14 +158,74 @@ curl -X POST "http://localhost:8000/upload?fps=30&width=800&height=600" \
 }
 ```
 
-### Task Status Endpoint
+### Video Format Conversion Endpoint
 
-**Endpoint:** `GET /tasks/{task_id}`
+**Endpoint:** `POST /video-converter/convert`
+
+**Form Parameters:**
+
+- `file`: Video file (.mp4, .mov, .avi, .webm, .mkv, .flv, .wmv, .m4v)
+
+**Query Parameters:**
+
+- `output_format`: Output format (mp4, webm, mov, avi, mkv, flv)
+- `quality`: Quality preset (low, medium, high, veryhigh) - default: medium
+- `width`: Output width in pixels (optional, maintains aspect ratio if only one dimension specified)
+- `height`: Output height in pixels (optional)
+- `bitrate`: Video bitrate (e.g., '1M' for 1 Mbps) - optional
+- `preset`: Encoding preset (ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow) - default: medium
+- `crf`: Constant Rate Factor (0-51, lower means better quality) - optional
+- `audio_codec`: Audio codec (aac, mp3, opus, etc.) - optional
+- `audio_bitrate`: Audio bitrate (e.g., '128k') - optional
 
 **Example Request:**
 
 ```bash
-curl -X GET "http://localhost:8000/tasks/1716203414"
+curl -X POST "http://localhost:8000/video-converter/convert?output_format=mp4&quality=high" \
+  -H "Content-Type: multipart/form-data" \
+  -F "file=@video.webm"
+```
+
+**Example Response (Background Processing):**
+
+```json
+{
+  "task_id": "1716203415",
+  "status": "processing",
+  "message": "Video conversion to mp4 started in the background",
+  "status_endpoint": "/tasks/1716203415"
+}
+```
+
+### Get Supported Formats Endpoint
+
+**Endpoint:** `GET /video-converter/formats`
+
+**Example Request:**
+
+```bash
+curl -X GET "http://localhost:8000/video-converter/formats"
+```
+
+**Example Response:**
+
+```json
+{
+  "input_formats": [".mp4", ".mov", ".avi", ".webm", ".mkv", ".flv", ".wmv", ".m4v"],
+  "output_formats": ["mp4", "webm", "mov", "avi", "mkv", "flv"],
+  "quality_presets": ["low", "medium", "high", "veryhigh"],
+  "encoding_presets": ["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"]
+}
+```
+
+### Task Status Endpoint
+
+**Endpoint:** `GET /video-converter/tasks/{task_id}`
+
+**Example Request:**
+
+```bash
+curl -X GET "http://localhost:8000/video-converter/tasks/1716203414"
 ```
 
 **Example Response (In Progress):**
@@ -198,7 +262,7 @@ curl -X GET "http://localhost:8000/tasks/1716203414"
 
 ### Test UI Endpoint
 
-**Endpoint:** `GET /test`
+**Endpoint:** `GET /video-converter/test`
 
 **Description:** Serves an HTML page with a form for testing the video-to-lottie conversion with real-time progress tracking and Lottie preview.
 

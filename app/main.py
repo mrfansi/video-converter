@@ -34,7 +34,14 @@ app = FastAPI(
     license_info={
         "name": "MIT",
     },
+    docs_url="/video-converter/docs",
+    redoc_url="/video-converter/redoc",
+    openapi_url="/video-converter/openapi.json",
 )
+
+# Create API router with prefix
+from fastapi import APIRouter
+router = APIRouter(prefix="/video-converter")
 
 # Start the task queue on app startup
 @app.on_event("startup")
@@ -294,7 +301,7 @@ def process_video_task(
         cleanup_temp_files(temp_dir)
         raise
 
-@app.get("/", tags=["General"])
+@router.get("/", tags=["General"])
 async def root():
     """
     Root endpoint - API health check
@@ -303,7 +310,7 @@ async def root():
     """
     return {"message": "Video to Lottie Conversion API", "status": "ok"}
 
-@app.get("/test", response_class=HTMLResponse, tags=["UI"], include_in_schema=True)
+@router.get("/test", response_class=HTMLResponse, tags=["UI"], include_in_schema=True)
 async def test_page():
     """
     Serve the test upload page
@@ -321,7 +328,26 @@ async def test_page():
     else:
         return "<html><body><h1>Test page not found</h1></body></html>"
 
-@app.post("/upload", tags=["Conversion"], summary="Upload and convert video to Lottie")
+@router.get("/test-convert", response_class=HTMLResponse, tags=["UI"], include_in_schema=True)
+async def test_convert_page():
+    """
+    Serve the test video conversion page
+    
+    This endpoint serves an HTML page with a form for testing the video format conversion.
+    The page includes:
+    - File upload form
+    - Format selection and quality options
+    - Advanced configuration options
+    - Real-time progress tracking
+    - Video playback preview
+    """
+    test_html_path = Path("static/test_convert.html")
+    if test_html_path.exists():
+        return test_html_path.read_text()
+    else:
+        return "<html><body><h1>Test conversion page not found</h1></body></html>"
+
+@router.post("/upload", tags=["Conversion"], summary="Upload and convert video to Lottie")
 async def upload_video(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="Video file to convert (.mp4, .mov, .avi, .webm)"),
@@ -390,14 +416,14 @@ async def upload_video(
             "task_id": task_id,
             "status": task.status.value,
             "message": "Video processing started in the background",
-            "status_endpoint": f"/tasks/{task_id}"
+            "status_endpoint": f"/video-converter/tasks/{task_id}"
         }
         
     except Exception as e:
         logger.error(f"Error processing video: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/tasks/{task_id}", tags=["Tasks"], summary="Get task status")
+@router.get("/tasks/{task_id}", tags=["Tasks"], summary="Get task status")
 async def get_task_status(task_id: str):
     """
     Get the status of a video processing task
@@ -651,7 +677,7 @@ def convert_video_format_task(
         cleanup_temp_files(temp_dir)
         raise
 
-@app.post("/convert", tags=["Conversion"], summary="Convert video to another format with optimization")
+@router.post("/convert", tags=["Conversion"], summary="Convert video to another format with optimization")
 async def convert_video_format(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="Video file to convert (.mp4, .mov, .avi, .webm, .mkv, .flv, .wmv, .m4v)"),
@@ -764,14 +790,14 @@ async def convert_video_format(
             "task_id": task_id,
             "status": task.status.value,
             "message": f"Video conversion to {output_format} started in the background",
-            "status_endpoint": f"/tasks/{task_id}"
+            "status_endpoint": f"/video-converter/tasks/{task_id}"
         }
         
     except Exception as e:
         logger.error(f"Error processing video conversion: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/formats", tags=["Conversion"], summary="Get supported video formats and options")
+@router.get("/formats", tags=["Conversion"], summary="Get supported video formats and options")
 async def get_formats():
     """
     Get a list of supported video formats and conversion options
@@ -784,7 +810,7 @@ async def get_formats():
     """
     return get_supported_formats()
 
-@app.get("/health")
+@router.get("/health")
 async def health_check():
     """
     Health check endpoint
@@ -799,6 +825,9 @@ async def health_check():
             "r2_storage": r2_status
         }
     }
+
+# Include the router in the app
+app.include_router(router)
 
 if __name__ == "__main__":
     import uvicorn
