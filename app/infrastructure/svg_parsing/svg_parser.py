@@ -15,7 +15,6 @@ from app.infrastructure.svg_parsing.parsing_strategies import (
 )
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -32,21 +31,52 @@ class SVGParserProcessor(ISVGParser):
         }
         self._element_filter = StandardSVGElementFilter()
     
-    def _get_strategy(self, strategy_type: SVGParsingStrategy):
+    def _get_strategy(self, strategy_type: SVGParsingStrategy) -> ISVGPathParsingStrategy:
         """
         Get the appropriate strategy based on the strategy type
+        
+        Args:
+            strategy_type: The type of strategy to use
+            
+        Returns:
+            The appropriate strategy implementation
         """
+        if not isinstance(strategy_type, SVGParsingStrategy):
+            logger.warning(f"Invalid strategy type: {strategy_type}, using STANDARD")
+            return self._strategies[SVGParsingStrategy.STANDARD]
+            
         if strategy_type not in self._strategies:
             logger.warning(f"Strategy {strategy_type} not found, using STANDARD")
             return self._strategies[SVGParsingStrategy.STANDARD]
+            
+        logger.debug(f"Using {strategy_type} strategy for SVG parsing")
         return self._strategies[strategy_type]
     
     def _get_element_filter(self, params: SVGParsingParams) -> ISVGElementFilter:
         """
         Get the appropriate element filter based on the parameters
+        
+        Args:
+            params: The SVG parsing parameters
+            
+        Returns:
+            The appropriate element filter implementation
         """
+        if not isinstance(params, SVGParsingParams):
+            logger.warning("Invalid parameters provided, using default element filter")
+            return self._element_filter
+            
         if params.strategy == SVGParsingStrategy.OPTIMIZED:
+            # For optimized strategy, use advanced filter with specific settings
             return AdvancedSVGElementFilter(include_groups=False, include_hidden=False)
+        elif params.strategy == SVGParsingStrategy.SIMPLIFIED:
+            # For simplified strategy, use standard filter
+            return self._element_filter
+        elif params.strategy == SVGParsingStrategy.FALLBACK:
+            # For fallback strategy, use standard filter with more permissive settings
+            return self._element_filter
+            
+        # Default to standard filter
         return self._element_filter
     
     def parse_svg_to_paths(self, svg_path: str, params: Optional[SVGParsingParams] = None) -> List[Dict[str, Any]]:

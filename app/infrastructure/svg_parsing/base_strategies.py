@@ -8,7 +8,6 @@ from app.domain.interfaces.svg_parsing import (
 )
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

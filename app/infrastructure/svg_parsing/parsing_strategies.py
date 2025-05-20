@@ -1,6 +1,6 @@
 import logging
-from typing import List, Dict, Any, Optional
-from svgelements import SVG, Path as SVGPath
+from typing import List, Dict, Any, Optional, Tuple
+from svgelements import Path as SVGPath
 
 from app.domain.interfaces.svg_parsing import (
     ISVGPathParsingStrategy,
@@ -15,7 +15,6 @@ from app.infrastructure.svg_parsing.base_strategies import (
 )
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -33,9 +32,19 @@ class OptimizedSegmentProcessor(BaseSegmentProcessor):
     def __init__(self, simplify_tolerance: float = 0.1):
         self.simplify_tolerance = simplify_tolerance
     
-    def process_segment(self, segment, current_point, vertices, in_tangents, out_tangents):
+    def process_segment(self, segment, current_point, vertices, in_tangents, out_tangents) -> Tuple[List, List, List, Any]:
         """
         Process a path segment with optimization
+        
+        Args:
+            segment: Path segment to process
+            current_point: Current point in the path
+            vertices: List of vertices
+            in_tangents: List of in tangents
+            out_tangents: List of out tangents
+            
+        Returns:
+            Tuple containing updated vertices, in_tangents, out_tangents, and current_point
         """
         # First use the base implementation
         vertices, in_tangents, out_tangents, current_point = super().process_segment(
@@ -78,9 +87,19 @@ class SimplifiedSegmentProcessor(BaseSegmentProcessor):
     """
     Simplified segment processor that converts all curves to lines for better performance
     """
-    def process_segment(self, segment, current_point, vertices, in_tangents, out_tangents):
+    def process_segment(self, segment, current_point, vertices, in_tangents, out_tangents) -> Tuple[List, List, List, Any]:
         """
         Process a path segment with simplification (convert curves to lines)
+        
+        Args:
+            segment: Path segment to process
+            current_point: Current point in the path
+            vertices: List of vertices
+            in_tangents: List of in tangents
+            out_tangents: List of out tangents
+            
+        Returns:
+            Tuple containing updated vertices, in_tangents, out_tangents, and current_point
         """
         segment_type = segment.__class__.__name__
         
@@ -218,8 +237,15 @@ class FallbackSVGPathParsingStrategy(BaseSVGPathParsingStrategy):
     def parse_path_element(self, element) -> Optional[Dict[str, Any]]:
         """
         Parse an SVG path element with robust error handling
+        
+        Args:
+            element: SVG path element to parse
+            
+        Returns:
+            Dict representing a Lottie path or None if parsing failed
         """
         try:
+            # First try the standard parsing strategy
             return super().parse_path_element(element)
         except Exception as e:
             logger.warning(f"Error in primary parsing strategy, using fallback: {str(e)}")
@@ -227,6 +253,7 @@ class FallbackSVGPathParsingStrategy(BaseSVGPathParsingStrategy):
                 # Fallback to a very simple representation
                 # Just extract start and end points to create a simple line
                 if hasattr(element, "first_point") and hasattr(element, "current_point"):
+                    # Create a simple line from first point to current point
                     vertices = [
                         [element.first_point.x, element.first_point.y],
                         [element.current_point.x, element.current_point.y]
@@ -235,7 +262,30 @@ class FallbackSVGPathParsingStrategy(BaseSVGPathParsingStrategy):
                     out_tangents = [[0, 0], [0, 0]]
                     closed = False
                     
+                    logger.info("Created simplified line representation for problematic SVG element")
                     return self.path_builder.build_lottie_path(vertices, in_tangents, out_tangents, closed)
+                elif hasattr(element, "__iter__"):
+                    # Try to extract at least some points from the element
+                    try:
+                        points = []
+                        for segment in element:
+                            if hasattr(segment, "end"):
+                                points.append([segment.end.x, segment.end.y])
+                        
+                        if len(points) >= 2:
+                            # We have at least two points, create a simple path
+                            vertices = points
+                            in_tangents = [[0, 0]] * len(points)
+                            out_tangents = [[0, 0]] * len(points)
+                            closed = False
+                            
+                            logger.info("Created simplified path from segments for problematic SVG element")
+                            return self.path_builder.build_lottie_path(vertices, in_tangents, out_tangents, closed)
+                    except Exception as e3:
+                        logger.warning(f"Failed to extract points from element: {str(e3)}")
+                
+                # If we reach here, we couldn't create a fallback path
+                logger.warning("Could not create fallback path for SVG element")
                 return None
             except Exception as e2:
                 logger.error(f"Fallback parsing also failed: {str(e2)}")
