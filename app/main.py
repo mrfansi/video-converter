@@ -84,9 +84,9 @@ def process_video_task(
     temp_dir: str,
     file_path: str,
     fps: int,
-    width: int,
-    height: int,
-    original_filename: str,
+    width: int = None,  # Now optional
+    height: int = None,  # Now optional
+    original_filename: str = None,
     task_id: str = None  # Add task_id parameter for progress tracking
 ) -> Dict[str, Any]:
     """
@@ -127,6 +127,17 @@ def process_video_task(
         os.makedirs(frames_dir, exist_ok=True)
         os.makedirs(svg_dir, exist_ok=True)
         
+        # Get original video dimensions
+        video_info = get_video_info(file_path)
+        source_width = video_info['video']['width']
+        source_height = video_info['video']['height']
+        
+        # Use source dimensions if width/height not specified
+        if width is None or height is None:
+            width = source_width
+            height = source_height
+            logger.info(f"Using source video dimensions: {width}x{height}")
+            
         # Step 1: Extract frames from video
         current_step += 1
         if task_id:
@@ -209,13 +220,29 @@ def process_video_task(
                 percent=80,
                 details=f"Creating Lottie animation with {len(parsed_paths)} frames at {fps} fps"
             )
-            
-        lottie_json = create_lottie_animation(parsed_paths, fps, width, height)
         
-        # Save Lottie JSON to file
+        # Calculate max frames based on video length to prevent huge files
+        # For longer videos, we'll sample fewer frames
+        max_frames = 100  # Default max frames
+        if len(parsed_paths) > 200:
+            # For longer videos, use fewer frames to keep file size manageable
+            max_frames = min(100, 1000 // (len(parsed_paths) // 100))
+            logger.info(f"Long video detected ({len(parsed_paths)} frames), limiting to {max_frames} frames")
+            
+        # Create optimized Lottie animation
+        lottie_json = create_lottie_animation(
+            parsed_paths, 
+            fps=fps, 
+            width=width, 
+            height=height,
+            max_frames=max_frames,
+            optimize=True  # Enable optimizations
+        )
+        
+        # Save Lottie JSON to file with compression
         lottie_filename = f"output_{int(time.time())}.json"
         lottie_path = os.path.join(temp_dir, lottie_filename)
-        lottie_path = save_lottie_json(lottie_json, lottie_path)
+        lottie_path = save_lottie_json(lottie_json, lottie_path, compress=True)
         logger.info(f"Saved Lottie JSON to {lottie_path}")
         
         # Step 5: Upload to Cloudflare R2
@@ -352,8 +379,8 @@ async def upload_video(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="Video file to convert (.mp4, .mov, .avi, .webm)"),
     fps: int = Query(settings.DEFAULT_FPS, ge=1, le=30, description="Frames per second for the Lottie animation"),
-    width: int = Query(settings.DEFAULT_WIDTH, ge=100, le=2000, description="Width of the output Lottie animation"),
-    height: int = Query(settings.DEFAULT_HEIGHT, ge=100, le=2000, description="Height of the output Lottie animation")
+    width: int = Query(None, ge=100, le=2000, description="Width of the output Lottie animation (optional, uses source video width if not specified)"),
+    height: int = Query(None, ge=100, le=2000, description="Height of the output Lottie animation (optional, uses source video height if not specified)")
 ):
     """
     Upload a video file and convert it to a Lottie animation
