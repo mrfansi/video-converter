@@ -10,24 +10,25 @@ class Settings(BaseSettings):
     Application settings loaded from environment variables
     """
     # API settings
-    API_TITLE: str = "Video to Lottie Conversion API"
+    API_TITLE: str = "Video Converter API"
     API_DESCRIPTION: str = """
-    This API converts video files to Lottie animations.
+    This API converts video files to Lottie animations and between different video formats with optimization.
     
     ## Features
     
-    * Upload video files (.mp4, .mov, .avi, .webm)
+    * Upload video files (.mp4, .mov, .avi, .webm, .mkv, .flv, .wmv, .m4v)
     * Convert videos to Lottie JSON animations
-    * Background processing with progress tracking
+    * Convert videos between different formats with optimization options
+    * Background processing with real-time progress tracking
     * Generate thumbnails from videos
     * Store results in Cloudflare R2
     
     ## Workflow
     
-    1. Upload a video using the `/upload` endpoint
+    1. Upload a video using the `/upload` endpoint for Lottie conversion or `/convert` for format conversion
     2. Receive a task ID and status endpoint
     3. Poll the status endpoint to track progress
-    4. When complete, receive URLs to the Lottie animation and thumbnail
+    4. When complete, receive URLs to the processed files
     """
     API_VERSION: str = "1.0.0"
     
