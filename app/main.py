@@ -829,6 +829,21 @@ async def health_check():
 # Include the router in the app
 app.include_router(router)
 
-if __name__ == "__main__":
+def start_app():
+    """
+    Entry point for the application when installed as a package.
+    Used by the 'start' script defined in pyproject.toml.
+    """
+    import uvicorn
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000)
+
+def start_dev():
+    """
+    Entry point for development mode with auto-reload.
+    Used by the 'dev' script defined in pyproject.toml.
+    """
     import uvicorn
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+
+if __name__ == "__main__":
+    start_dev()
