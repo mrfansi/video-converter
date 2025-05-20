@@ -322,7 +322,7 @@ async def test_page():
     - Real-time progress tracking
     - Lottie animation preview
     """
-    test_html_path = Path("tests/test_upload.html")
+    test_html_path = Path("static/test_upload.html")
     if test_html_path.exists():
         return test_html_path.read_text()
     else:
