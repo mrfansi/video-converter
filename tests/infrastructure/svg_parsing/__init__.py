@@ -1,0 +1,1 @@
+# SVG Parsing tests package
