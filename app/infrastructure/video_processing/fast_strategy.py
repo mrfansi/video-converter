@@ -72,16 +72,16 @@ class FastVideoProcessingStrategy(BaseVideoProcessingStrategy):
             # Use a lower fps for faster processing
             adjusted_fps = max(1, fps // 2)  # Halve the fps but ensure at least 1
             
-            frame_params = FrameExtractionParamBuilder()\
-                .with_input_path(file_path)\
-                .with_output_dir(os.path.join(temp_dir, "frames"))\
-                .with_fps(adjusted_fps)\
-                .with_dimensions(width, height)\
-                .with_method(FrameExtractionMethod.FFMPEG)\
-                .with_quality_threshold(70)\
-                .with_max_frames(50)\
-                .with_progress_callback(progress_callback)\
-                .build()
+            frame_params = (FrameExtractionParamBuilder()
+                .with_input_path(file_path)
+                .with_output_dir(os.path.join(temp_dir, "frames"))
+                .with_fps(adjusted_fps)
+                .with_dimensions(width, height)
+                .with_method(FrameExtractionMethod.FFMPEG)  # Use FFmpeg for speed
+                .with_quality_threshold(70)  # Lower quality threshold for speed
+                .with_max_frames(50)  # Limit to 50 frames for speed
+                .with_progress_callback(progress_callback)
+                .build())
                 
             frame_extractor = FrameExtractor()
             frame_paths = frame_extractor.extract_frames(frame_params)

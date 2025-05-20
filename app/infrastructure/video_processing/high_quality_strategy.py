@@ -69,15 +69,15 @@ class HighQualityVideoProcessingStrategy(BaseVideoProcessingStrategy):
             from app.infrastructure.frame_extractor import FrameExtractor
             from app.models.video_params import FrameExtractionParamBuilder, FrameExtractionMethod
             
-            frame_params = FrameExtractionParamBuilder()\
-                .with_input_path(file_path)\
-                .with_output_dir(os.path.join(temp_dir, "frames"))\
-                .with_fps(fps)\
-                .with_dimensions(width, height)\
-                .with_method(FrameExtractionMethod.OPENCV)  # Use OpenCV for higher quality\
-                .with_quality_threshold(90)  # Higher quality threshold\
-                .with_progress_callback(progress_callback)\
-                .build()
+            frame_params = (FrameExtractionParamBuilder()
+                .with_input_path(file_path)
+                .with_output_dir(os.path.join(temp_dir, "frames"))
+                .with_fps(fps)
+                .with_dimensions(width, height)
+                .with_method(FrameExtractionMethod.OPENCV)  # Use OpenCV for higher quality
+                .with_quality_threshold(90)  # Higher quality threshold
+                .with_progress_callback(progress_callback)
+                .build())
                 
             frame_extractor = FrameExtractor()
             frame_paths = frame_extractor.extract_frames(frame_params)

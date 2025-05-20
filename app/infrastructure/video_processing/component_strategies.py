@@ -212,14 +212,14 @@ class FastFrameProcessor(BaseFrameProcessor):
                 svg_path = os.path.join(output_dir, f"{frame_name}.svg")
                 
                 # Trace PNG to SVG with fast settings
-                params = ImageTracingParamBuilder()\
-                    .with_input_path(frame_path)\
-                    .with_output_path(svg_path)\
-                    .with_strategy(ImageTracingStrategy.BASIC)\
-                    .with_simplify_tolerance(2.0)\
-                    .with_color_mode("colored")\
-                    .with_embed_image(False)\
-                    .build()
+                params = (ImageTracingParamBuilder()
+                    .with_input_path(frame_path)
+                    .with_output_path(svg_path)
+                    .with_strategy(ImageTracingStrategy.BASIC)
+                    .with_simplify_tolerance(2.0)  # Higher tolerance for less detail but faster processing
+                    .with_color_mode("colored")
+                    .with_embed_image(False)
+                    .build())
                 
                 processor = RefactoredImageProcessor()
                 svg_path = processor.trace_png_to_svg(params)
