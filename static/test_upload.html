@@ -239,7 +239,7 @@
 
       // Function to poll task status
       async function pollTaskStatus(statusEndpoint) {
-        const baseUrl = "http://localhost:8000"; // Base API URL - statusEndpoint already includes prefix
+        const baseUrl = "/"; // Base API URL - statusEndpoint already includes prefix
         const fullUrl = baseUrl + statusEndpoint;
         let lastStep = "";
         let lastPercent = 0;
