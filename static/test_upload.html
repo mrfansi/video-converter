@@ -239,14 +239,12 @@
 
       // Function to poll task status
       async function pollTaskStatus(statusEndpoint) {
-        const baseUrl = "/"; // Base API URL - statusEndpoint already includes prefix
-        const fullUrl = baseUrl + statusEndpoint;
         let lastStep = "";
         let lastPercent = 0;
 
         const pollInterval = setInterval(async () => {
           try {
-            const response = await fetch(fullUrl);
+            const response = await fetch(statusEndpoint);
             const data = await response.json();
 
             // Extract progress information
