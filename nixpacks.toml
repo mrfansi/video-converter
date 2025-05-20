@@ -1,23 +1,22 @@
-# nixpacks.toml
-
 [phases.setup]
 aptPkgs = [
-    "ffmpeg",
-    "libgl1",            # ✅ required for libGL.so.1
-    "libglib2.0-0",
-    "libsm6",
-    "libxrender1",
-    "libxext6",
-    "build-essential",
-    "python3-opencv"
+  "ffmpeg",
+  "libgl1",
+  "libglib2.0-0",
+  "libsm6",
+  "libxrender1",
+  "libxext6",
+  "build-essential",
+  "python3-opencv"
 ]
 
 [phases.install]
 cmds = [
-    "python3 -m venv /opt/venv",
-    ". /opt/venv/bin/activate",
-    "pip install --upgrade pip",
-    "pip install -r requirements.txt"
+  "python3 -m venv /opt/venv",
+  ". /opt/venv/bin/activate",
+  "pip install --upgrade pip",
+  "pip install -r requirements.txt",
+  "[ -f /usr/lib/x86_64-linux-gnu/libGL.so.1 ] && ln -sf /usr/lib/x86_64-linux-gnu/libGL.so.1 /usr/lib/libGL.so.1 || true"
 ]
 
 [nixpkgs]
