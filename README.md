@@ -1,4 +1,4 @@
-# Video-to-Lottie Conversion Service
+# Video Converter
 
 A production-ready backend service that converts video files into Lottie JSON animations and uploads them to Cloudflare R2 storage with background processing and real-time progress tracking.
 
@@ -34,12 +34,14 @@ A production-ready backend service that converts video files into Lottie JSON an
 #### System Dependencies
 
 **Ubuntu/Debian:**
+
 ```bash
 sudo apt-get update
 sudo apt-get install -y ffmpeg
 ```
 
 **macOS:**
+
 ```bash
 brew install ffmpeg
 ```
@@ -53,6 +55,7 @@ pip install -r requirements.txt
 ## Configuration
 
 1. Copy the example environment file:
+
    ```bash
    cp .env.example .env
    ```
@@ -124,14 +127,17 @@ These interactive documentation pages allow you to explore and test all availabl
 **Endpoint:** `POST /upload`
 
 **Form Parameters:**
+
 - `file`: Video file (.mp4, .mov, .avi, .webm)
 
 **Query Parameters:**
+
 - `fps`: Frames per second (default: 30)
 - `width`: Output width (default: 800)
 - `height`: Output height (default: 600)
 
 **Example Request:**
+
 ```bash
 curl -X POST "http://localhost:8000/upload?fps=30&width=800&height=600" \
   -H "Content-Type: multipart/form-data" \
@@ -139,6 +145,7 @@ curl -X POST "http://localhost:8000/upload?fps=30&width=800&height=600" \
 ```
 
 **Example Response (Background Processing):**
+
 ```json
 {
   "task_id": "1716203414",
@@ -152,11 +159,13 @@ curl -X POST "http://localhost:8000/upload?fps=30&width=800&height=600" \
 **Endpoint:** `GET /tasks/{task_id}`
 
 **Example Request:**
+
 ```bash
 curl -X GET "http://localhost:8000/tasks/1716203414"
 ```
 
 **Example Response (In Progress):**
+
 ```json
 {
   "task_id": "1716203414",
@@ -170,6 +179,7 @@ curl -X GET "http://localhost:8000/tasks/1716203414"
 ```
 
 **Example Response (Completed):**
+
 ```json
 {
   "task_id": "1716203414",
@@ -193,6 +203,7 @@ curl -X GET "http://localhost:8000/tasks/1716203414"
 **Description:** Serves an HTML page with a form for testing the video-to-lottie conversion with real-time progress tracking and Lottie preview.
 
 **Example Access:**
+
 ```
 http://localhost:8000/test
 ```
@@ -202,11 +213,13 @@ http://localhost:8000/test
 **Endpoint:** `GET /`
 
 **Example Request:**
+
 ```bash
 curl -X GET "http://localhost:8000/"
 ```
 
 **Example Response:**
+
 ```json
 {
   "message": "Video to Lottie Conversion API",
