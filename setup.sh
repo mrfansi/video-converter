@@ -18,7 +18,6 @@ apt-get clean
 rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
-pip install --upgrade pip setuptools wheel
-pip install -r requirements.txt
+python -m venv --copies /opt/venv && . /opt/venv/bin/activate && pip install -r requirements.txt
 
 echo "Setup completed successfully!"
