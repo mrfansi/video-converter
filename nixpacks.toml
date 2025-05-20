@@ -1,13 +1,15 @@
 [phases.setup]
 aptPkgs = [
+  "python3",
+  "python3-venv",
+  "python3-opencv",
   "ffmpeg",
   "libgl1",
   "libglib2.0-0",
   "libsm6",
   "libxrender1",
   "libxext6",
-  "build-essential",
-  "python3-opencv"
+  "build-essential"
 ]
 
 [phases.install]
@@ -15,18 +17,15 @@ cmds = [
   "python3 -m venv /opt/venv",
   ". /opt/venv/bin/activate",
   "pip install --upgrade pip",
-  "pip install -r requirements.txt",
-  "[ -f /usr/lib/x86_64-linux-gnu/libGL.so.1 ] && ln -sf /usr/lib/x86_64-linux-gnu/libGL.so.1 /usr/lib/libGL.so.1 || true",
-  "[ -f /usr/lib/x86_64-linux-gnu/libgthread-2.0.so.0 ] && ln -sf /usr/lib/x86_64-linux-gnu/libgthread-2.0.so.0 /usr/lib/libgthread-2.0.so.0 || true",
-  "[ -f /usr/lib/x86_64-linux-gnu/libglib-2.0.so.0 ] && ln -sf /usr/lib/x86_64-linux-gnu/libglib-2.0.so.0 /usr/lib/libglib-2.0.so.0 || true"
+  "pip install -r requirements.txt"
 ]
 
 [nixpkgs]
-libs = ["libGL", "libX11", "libglvnd"]
-packages = ["opencv", "ffmpeg"]
+libs = ["libGL", "libX11", "libglvnd", "glib"]
+packages = ["ffmpeg"]
 
 [start]
-cmd = "LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/lib uvicorn app.main:app --host 0.0.0.0 --port $PORT --root-path /video-converter"
+cmd = "uvicorn app.main:app --host 0.0.0.0 --port $PORT --root-path /video-converter"
 
 [variables]
 PORT = "8000"
