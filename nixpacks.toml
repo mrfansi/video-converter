@@ -6,11 +6,20 @@ aptPkgs = [
     "libsm6", 
     "libxrender1", 
     "libxext6", 
-    "python3-opencv"
+    "python3-opencv",
+    "build-essential"
 ]
 
+[phases.install]
+cmds = ["./setup.sh"]
+
+[nixpkgs]
+libs = ["libGL", "libX11", "libglvnd"]
+packages = ["opencv", "ffmpeg"]
+
+
 [start]
-cmd = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+cmd = "uvicorn app.main:app --host 0.0.0.0 --port $PORT --root-path /video-converter"
 
 [variables]
 PORT = "8000"
