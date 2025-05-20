@@ -1,0 +1,43 @@
+
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>Lottie Animation Player</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.9.6/lottie.min.js"></script>
+        <style>
+            body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
+            h1 { color: #333; }
+            .player-container { display: flex; flex-wrap: wrap; gap: 20px; }
+            .player { width: 300px; height: 300px; border: 1px solid #ccc; margin-bottom: 20px; }
+            .controls { margin-top: 10px; }
+            button { padding: 5px 10px; margin-right: 5px; cursor: pointer; }
+        </style>
+    </head>
+    <body>
+        <h1>Lottie Animation Player</h1>
+        <div class="player-container">
+            <div>
+                <h2>Test Animation</h2>
+                <div id="player1" class="player"></div>
+                <div class="controls">
+                    <button onclick="player1.play()">Play</button>
+                    <button onclick="player1.pause()">Pause</button>
+                    <button onclick="player1.stop()">Stop</button>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+            // Load the animation
+            var player1 = lottie.loadAnimation({  
+                container: document.getElementById('player1'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: false,
+                path: 'test_player.json'
+            });
+        </script>
+    </body>
+    </html>
+    

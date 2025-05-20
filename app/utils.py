@@ -184,6 +184,7 @@ def extract_frames(video_path: str, output_dir: str, fps: int = 24, width: int =
 def prepare_frame_for_tracing(image_path: str) -> str:
     """
     Prepare an image for tracing by enhancing contrast and reducing noise
+    while preserving color information
     
     Args:
         image_path (str): Path to the image
@@ -192,15 +193,22 @@ def prepare_frame_for_tracing(image_path: str) -> str:
         str: Path to the processed image
     """
     try:
-        # Open image
+        # Open image (preserving color)
         img = Image.open(image_path)
         
-        # Convert to grayscale
-        img = img.convert('L')
+        # Convert to RGB to ensure consistent color mode
+        img = img.convert('RGB')
         
-        # Enhance contrast
+        # Enhance contrast for each channel while preserving color
         pixels = np.array(img)
-        pixels = np.interp(pixels, (pixels.min(), pixels.max()), (0, 255)).astype(np.uint8)
+        
+        # Process each color channel separately
+        for i in range(3):  # RGB channels
+            channel = pixels[:,:,i]
+            # Only enhance contrast if the channel has variation
+            if channel.max() > channel.min():
+                pixels[:,:,i] = np.interp(channel, (channel.min(), channel.max()), (0, 255)).astype(np.uint8)
+        
         img = Image.fromarray(pixels)
         
         # Save processed image (overwrite original)
