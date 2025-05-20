@@ -387,182 +387,75 @@ def convert_video_format_task(
         Dict[str, Any]: Processing result with URLs
     """
     try:
+        # Import the necessary modules
+        from app.infrastructure.video_format_task import VideoFormatTaskProcessor
+        from app.models.video_format_params import VideoFormatTaskParamBuilder
+        
         logger.info(f"Converting video format in background: {original_filename}")
         
-        # Define total steps for progress tracking
-        total_steps = 3  # Initialize, convert, upload
-        current_step = 0
+        # Create parameter object using builder pattern
+        params_builder = VideoFormatTaskParamBuilder()
+        params_builder.with_temp_dir(temp_dir)
+        params_builder.with_file_path(file_path)
+        params_builder.with_output_format(output_format)
+        params_builder.with_quality(quality)
         
-        # Update progress if task_id is provided
-        if task_id:
-            task_queue.update_progress(
-                task_id=task_id,
-                current_step="Initializing",
-                total_steps=total_steps,
-                completed_steps=current_step,
-                percent=0,
-                details=f"Preparing to convert {original_filename} to {output_format}"
-            )
-        
-        # Step 1: Get video information
-        current_step += 1
-        if task_id:
-            task_queue.update_progress(
-                task_id=task_id,
-                current_step="Analyzing video",
-                completed_steps=current_step,
-                percent=10,
-                details=f"Analyzing video properties"
-            )
+        if width is not None and height is not None:
+            params_builder.with_dimensions(width, height)
             
-        video_info = get_video_info(file_path)
-        logger.info(f"Video info: {video_info}")
-        
-        # Step 2: Convert video
-        current_step += 1
-        if task_id:
-            task_queue.update_progress(
-                task_id=task_id,
-                current_step="Converting video",
-                completed_steps=current_step,
-                percent=20,
-                details=f"Converting video to {output_format}"
-            )
+        if bitrate is not None:
+            params_builder.with_bitrate(bitrate)
             
-        # Define progress callback function
-        def progress_update(task_id, current_step, percent, details):
-            task_queue.update_progress(
-                task_id=task_id,
-                current_step=current_step,
-                percent=20 + int(percent * 0.7),  # Scale to 20-90% of overall progress
-                details=details
-            )
+        if preset is not None:
+            params_builder.with_preset(preset)
+            
+        if crf is not None:
+            params_builder.with_crf(crf)
+            
+        if audio_codec is not None:
+            params_builder.with_audio_codec(audio_codec)
+            
+        if audio_bitrate is not None:
+            params_builder.with_audio_bitrate(audio_bitrate)
+            
+        if original_filename is not None:
+            params_builder.with_original_filename(original_filename)
+            
+        if task_id is not None:
+            params_builder.with_task_id(task_id)
+            
+        # Build the parameters
+        params = params_builder.build()
         
-        # Convert the video
-        conversion_result = convert_video(
-            input_path=file_path,
-            output_dir=temp_dir,
-            output_format=output_format,
-            quality=quality,
-            width=width,
-            height=height,
-            bitrate=bitrate,
-            preset=preset,
-            crf=crf,
-            audio_codec=audio_codec,
-            audio_bitrate=audio_bitrate,
-            task_id=task_id,
-            progress_callback=progress_update if task_id else None
+        # Create the processor and process the task
+        processor = VideoFormatTaskProcessor()
+        result = processor.process_video_format_task(
+            temp_dir=params.temp_dir,
+            file_path=params.file_path,
+            output_format=params.output_format,
+            quality=params.quality,
+            width=params.width,
+            height=params.height,
+            bitrate=params.bitrate,
+            preset=params.preset,
+            crf=params.crf,
+            audio_codec=params.audio_codec,
+            audio_bitrate=params.audio_bitrate,
+            original_filename=params.original_filename,
+            task_id=params.task_id
         )
         
-        logger.info(f"Video converted successfully: {conversion_result['output_path']}")
-        
-        # Step 3: Upload to Cloudflare R2
-        current_step += 1
-        if task_id:
-            task_queue.update_progress(
-                task_id=task_id,
-                current_step="Uploading to cloud storage",
-                completed_steps=current_step,
-                percent=90,
-                details="Uploading converted video to Cloudflare R2"
-            )
-            
-        # Upload the converted video
-        upload_result = r2_uploader.upload_file(
-            conversion_result['output_path'],
-            content_type=f"video/{output_format}"
-        )
-        
-        if not upload_result["success"]:
-            if task_id:
-                task_queue.update_progress(
-                    task_id=task_id,
-                    current_step="Upload failed",
-                    percent=90,
-                    details=f"Failed to upload to Cloudflare R2: {upload_result.get('error', 'Unknown error')}"
-                )
-            raise Exception(f"Failed to upload to Cloudflare R2: {upload_result.get('error', 'Unknown error')}")
-        
-        # Generate and upload a thumbnail
-        thumbnail_url = None
-        try:
-            if task_id:
-                task_queue.update_progress(
-                    task_id=task_id,
-                    current_step="Generating thumbnail",
-                    percent=95,
-                    details="Creating and uploading thumbnail preview"
-                )
-                
-            # Extract a frame for the thumbnail
-            frames_dir = os.path.join(temp_dir, "frames")
-            os.makedirs(frames_dir, exist_ok=True)
-            
-            # Extract just one frame for thumbnail
-            frame_paths = extract_frames(
-                file_path, 
-                frames_dir, 
-                fps=1,  # Just extract one frame
-                width=settings.DEFAULT_WIDTH,
-                height=settings.DEFAULT_HEIGHT
-            )
-            
-            if frame_paths and len(frame_paths) > 0:
-                # Use the first frame for the thumbnail
-                first_frame = frame_paths[0]
-                thumbnail_path = generate_thumbnail_from_frame(
-                    frame_path=first_frame,
-                    output_dir=temp_dir,
-                    source_dimensions=(width, height),  # Use source video dimensions
-                    maintain_aspect_ratio=True
-                )
-                
-                # Upload the thumbnail with a related object key
-                video_key = upload_result["object_key"]
-                thumbnail_key = video_key.replace(f".{output_format}", ".png")
-                
-                thumbnail_result = r2_uploader.upload_file(
-                    thumbnail_path, 
-                    content_type="image/png",
-                    custom_key=thumbnail_key
-                )
-                
-                if thumbnail_result["success"]:
-                    thumbnail_url = thumbnail_result["url"]
-                    logger.info(f"Thumbnail uploaded successfully: {thumbnail_url}")
-        except Exception as e:
-            # Don't fail the whole request if thumbnail generation fails
-            logger.warning(f"Thumbnail generation failed: {str(e)}")
-        
-        # Final step: Cleanup and completion
-        if task_id:
-            task_queue.update_progress(
-                task_id=task_id,
-                current_step="Completing task",
-                percent=100,
-                details="Processing complete, cleaning up temporary files"
-            )
-            
-        # Clean up temporary files
-        cleanup_temp_files(temp_dir)
-        
-        # Return success response with URLs
-        response = {
-            "url": upload_result["url"],
-            "format": output_format,
-            "size_bytes": conversion_result["size_bytes"],
-            "duration": conversion_result["duration"]
-        }
-        
-        # Add thumbnail URL if available
-        if thumbnail_url:
-            response["thumbnail_url"] = thumbnail_url
-            
-        return response
+        return result
         
     except Exception as e:
-        logger.error(f"Error converting video: {str(e)}")
+        logger.error(f"Error in video format task: {str(e)}")
+        if task_id:
+            task_queue.update_progress(
+                task_id=task_id,
+                current_step="Error",
+                percent=0,
+                details=f"Error processing video: {str(e)}"
+            )
         # Clean up temporary files on error
         cleanup_temp_files(temp_dir)
         raise
