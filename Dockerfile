@@ -6,7 +6,12 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     ffmpeg \
-    potrace \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxrender1 \
+    libxext6 \
+    python3-opencv \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements file
@@ -25,4 +30,4 @@ RUN mkdir -p media && chmod 777 media
 EXPOSE 8000
 
 # Command to run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--root-path", "/video-converter"]
