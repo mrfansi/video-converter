@@ -16,7 +16,8 @@ cmds = [
   ". /opt/venv/bin/activate",
   "pip install --upgrade pip",
   "pip install -r requirements.txt",
-  "[ -f /usr/lib/x86_64-linux-gnu/libGL.so.1 ] && ln -sf /usr/lib/x86_64-linux-gnu/libGL.so.1 /usr/lib/libGL.so.1 || true"
+  "[ -f /usr/lib/x86_64-linux-gnu/libGL.so.1 ] && ln -sf /usr/lib/x86_64-linux-gnu/libGL.so.1 /usr/lib/libGL.so.1 || true",
+  "[ -f /usr/lib/x86_64-linux-gnu/libgthread-2.0.so.0 ] && ln -sf /usr/lib/x86_64-linux-gnu/libgthread-2.0.so.0 /usr/lib/libgthread-2.0.so.0 || true"
 ]
 
 [nixpkgs]
