@@ -371,3 +371,124 @@ class ImageTracingParamBuilder(ParamBuilder[ImageTracingParams]):
     def with_progress_callback(self, callback: Callable[[float, Optional[str]], None]) -> 'ImageTracingParamBuilder':
         """Set the progress callback function."""
         return self.with_param("progress_callback", callback)
+
+
+class VideoProcessingStrategy(str, Enum):
+    """Strategies for video processing."""
+    STANDARD = "standard"  # Standard processing with balanced quality and speed
+    HIGH_QUALITY = "high_quality"  # High quality processing with more detail
+    FAST = "fast"  # Fast processing with lower quality
+
+
+class VideoProcessingParams(BaseParams):
+    """Parameters for video processing.
+    
+    This parameter object encapsulates all options for processing videos into Lottie animations,
+    replacing the need for numerous function parameters.
+    """
+    # Required parameters
+    file_path: str = Field(..., description="Path to the video file")
+    temp_dir: str = Field(..., description="Temporary directory for processing")
+    
+    # Optional parameters with defaults
+    fps: int = Field(default=24, description="Frames per second for the animation")
+    width: Optional[int] = Field(default=None, description="Width of the animation")
+    height: Optional[int] = Field(default=None, description="Height of the animation")
+    original_filename: Optional[str] = Field(default=None, description="Original filename of the uploaded video")
+    strategy: VideoProcessingStrategy = Field(
+        default=VideoProcessingStrategy.STANDARD,
+        description="Processing strategy to use"
+    )
+    max_frames: int = Field(default=100, description="Maximum number of frames to process")
+    optimize: bool = Field(default=True, description="Whether to optimize the Lottie animation")
+    compress: bool = Field(default=True, description="Whether to compress the Lottie animation")
+    
+    # Callback for progress tracking
+    task_id: Optional[str] = Field(default=None, description="Task ID for progress tracking")
+    progress_callback: Optional[Callable] = Field(
+        default=None,
+        description="Callback function for progress updates"
+    )
+    
+    @validator('file_path', 'temp_dir')
+    def validate_paths(cls, v):
+        """Validate that paths are not empty."""
+        if not v or not v.strip():
+            raise ValueError("Path cannot be empty")
+        return v
+    
+    @validator('fps')
+    def validate_fps(cls, v):
+        """Validate that fps is positive."""
+        if v <= 0:
+            raise ValueError("FPS must be positive")
+        return v
+    
+    @validator('width', 'height')
+    def validate_dimensions(cls, v):
+        """Validate that dimensions are positive if provided."""
+        if v is not None and v <= 0:
+            raise ValueError("Dimensions must be positive")
+        return v
+    
+    @validator('max_frames')
+    def validate_max_frames(cls, v):
+        """Validate that max_frames is positive."""
+        if v <= 0:
+            raise ValueError("Max frames must be positive")
+        return v
+
+
+class VideoProcessingParamBuilder(ParamBuilder[VideoProcessingParams]):
+    """Builder for VideoProcessingParams.
+    
+    Provides a fluent interface for building video processing parameters.
+    """
+    
+    def __init__(self):
+        """Initialize the builder with the VideoProcessingParams class."""
+        super().__init__(VideoProcessingParams)
+    
+    def with_file_path(self, file_path: str) -> 'VideoProcessingParamBuilder':
+        """Set the file path."""
+        return self.with_param("file_path", file_path)
+    
+    def with_temp_dir(self, temp_dir: str) -> 'VideoProcessingParamBuilder':
+        """Set the temporary directory."""
+        return self.with_param("temp_dir", temp_dir)
+    
+    def with_fps(self, fps: int) -> 'VideoProcessingParamBuilder':
+        """Set the frames per second."""
+        return self.with_param("fps", fps)
+    
+    def with_dimensions(self, width: Optional[int], height: Optional[int]) -> 'VideoProcessingParamBuilder':
+        """Set the animation dimensions."""
+        self.with_param("width", width)
+        return self.with_param("height", height)
+    
+    def with_original_filename(self, filename: str) -> 'VideoProcessingParamBuilder':
+        """Set the original filename."""
+        return self.with_param("original_filename", filename)
+    
+    def with_strategy(self, strategy: Union[VideoProcessingStrategy, str]) -> 'VideoProcessingParamBuilder':
+        """Set the processing strategy."""
+        if isinstance(strategy, str):
+            strategy = VideoProcessingStrategy(strategy)
+        return self.with_param("strategy", strategy)
+    
+    def with_max_frames(self, max_frames: int) -> 'VideoProcessingParamBuilder':
+        """Set the maximum number of frames."""
+        return self.with_param("max_frames", max_frames)
+    
+    def with_optimization(self, optimize: bool, compress: bool = True) -> 'VideoProcessingParamBuilder':
+        """Set optimization options."""
+        self.with_param("optimize", optimize)
+        return self.with_param("compress", compress)
+    
+    def with_task_id(self, task_id: str) -> 'VideoProcessingParamBuilder':
+        """Set the task ID for progress tracking."""
+        return self.with_param("task_id", task_id)
+    
+    def with_progress_callback(self, callback: Callable) -> 'VideoProcessingParamBuilder':
+        """Set the progress callback function."""
+        return self.with_param("progress_callback", callback)

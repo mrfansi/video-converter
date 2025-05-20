@@ -99,6 +99,7 @@ def process_video_task(
         width (int): Width of the animation
         height (int): Height of the animation
         original_filename (str): Original filename of the uploaded video
+        task_id (str): Task ID for progress tracking
         
     Returns:
         Dict[str, Any]: Processing result with URLs
@@ -106,208 +107,82 @@ def process_video_task(
     try:
         logger.info(f"Processing video in background: {original_filename}")
         
-        # Define total steps for progress tracking
-        total_steps = 5  # Initialize, extract, trace, generate, upload
-        current_step = 0
-        
-        # Update progress if task_id is provided
-        if task_id:
-            task_queue.update_progress(
-                task_id=task_id,
-                current_step="Initializing",
-                total_steps=total_steps,
-                completed_steps=current_step,
-                percent=0,
-                details=f"Preparing to process {original_filename}"
-            )
-        
-        # Use data folder for frames and SVGs instead of temp_dir
-        data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
-        frames_dir = os.path.join(data_dir, "frames")
-        svg_dir = os.path.join(data_dir, "svg")
-        os.makedirs(frames_dir, exist_ok=True)
-        os.makedirs(svg_dir, exist_ok=True)
-        
-        # Create a unique subfolder for this video processing task
-        task_timestamp = int(time.time())
-        frames_dir = os.path.join(frames_dir, str(task_timestamp))
-        svg_dir = os.path.join(svg_dir, str(task_timestamp))
-        os.makedirs(frames_dir, exist_ok=True)
-        os.makedirs(svg_dir, exist_ok=True)
-        
-        # Get original video dimensions
-        video_info = get_video_info(file_path)
-        source_width = video_info['video']['width']
-        source_height = video_info['video']['height']
-        
-        # Use source dimensions if width/height not specified
-        if width is None or height is None:
-            width = source_width
-            height = source_height
-            logger.info(f"Using source video dimensions: {width}x{height}")
-            
-        # Step 1: Extract frames from video
-        current_step += 1
-        if task_id:
-            task_queue.update_progress(
-                task_id=task_id,
-                current_step="Extracting frames",
-                completed_steps=current_step,
-                details=f"Extracting frames from video at {fps} fps"
-            )
-            
-        frame_paths = extract_frames(file_path, frames_dir, fps=fps, width=width, height=height)
-        logger.info(f"Extracted {len(frame_paths)} frames from video")
-        
-        # Step 2: Process frames to generate SVG files
-        current_step += 1
-        if task_id:
-            task_queue.update_progress(
-                task_id=task_id,
-                current_step="Tracing frames",
-                completed_steps=current_step,
-                details=f"Converting {len(frame_paths)} frames to vector graphics"
-            )
-            
-        svg_paths = []
-        total_frames = len(frame_paths)
-        
-        for i, frame_path in enumerate(frame_paths):
-            # Update progress for each frame if task_id is provided
-            if task_id and i % max(1, total_frames // 10) == 0:  # Update every ~10% of frames
-                frame_percent = int((i / total_frames) * 100)
-                sub_step_percent = current_step * 20 + (frame_percent // 5)  # Scale to overall progress
-                task_queue.update_progress(
-                    task_id=task_id,
-                    current_step="Tracing frames",
-                    percent=sub_step_percent,
-                    details=f"Processing frame {i+1}/{total_frames} ({frame_percent}%)"
-                )
-                
-            # Prepare frame for tracing
-            prepared_frame = prepare_frame_for_tracing(frame_path)
-            
-            # Trace PNG to SVG using the Lottie generator facade
-            lottie_facade = LottieGeneratorFacade()
-            svg_path = lottie_facade.trace_png_to_svg(prepared_frame, svg_dir)
-            svg_paths.append(svg_path)
-        
-        logger.info(f"Generated {len(svg_paths)} SVG files")
-        
-        # Step 3: Create Lottie animation directly from SVG files
-        current_step += 1
-        if task_id:
-            task_queue.update_progress(
-                task_id=task_id,
-                current_step="Creating Lottie animation",
-                completed_steps=current_step,
-                percent=60,
-                details=f"Generating Lottie animation from {len(svg_paths)} SVG files"
-            )
-        
-        # Create Lottie animation directly from SVG files using the facade
-        lottie_facade = LottieGeneratorFacade()
-        lottie_filename = f"output_{int(time.time())}.json"
-        lottie_path = os.path.join(temp_dir, lottie_filename)
-        
-        # Use the facade to create and save the Lottie animation in one step
-        lottie_path = lottie_facade.create_lottie_from_svgs(
-            svg_paths=svg_paths,
-            output_path=lottie_path,
-            fps=fps,
-            width=width,
-            height=height,
-            max_frames=100,
-            optimize=True,
-            compress=True
-        )
-        logger.info(f"Saved Lottie JSON to {lottie_path}")
-        
-        # Step 5: Upload to Cloudflare R2
-        current_step += 1
-        if task_id:
-            task_queue.update_progress(
-                task_id=task_id,
-                current_step="Uploading to cloud storage",
-                completed_steps=current_step,
-                percent=90,
-                details="Uploading Lottie animation to Cloudflare R2"
-            )
-            
-        upload_result = r2_uploader.upload_file(lottie_path)
-        
-        if not upload_result["success"]:
+        # Define progress callback function for tracking progress
+        def progress_callback(percent: int, details: str = None):
             if task_id:
+                # Map the percent to the appropriate step
+                if percent < 20:
+                    current_step = "Initializing"
+                elif percent < 40:
+                    current_step = "Extracting frames"
+                elif percent < 60:
+                    current_step = "Processing frames"
+                elif percent < 80:
+                    current_step = "Generating Lottie"
+                elif percent < 100:
+                    current_step = "Uploading files"
+                else:
+                    current_step = "Complete"
+                    
                 task_queue.update_progress(
                     task_id=task_id,
-                    current_step="Upload failed",
-                    percent=90,
-                    details=f"Failed to upload to Cloudflare R2: {upload_result.get('error', 'Unknown error')}"
+                    current_step=current_step,
+                    percent=percent,
+                    details=details
                 )
-            raise Exception(f"Failed to upload to Cloudflare R2: {upload_result.get('error', 'Unknown error')}")
         
-        # Generate and upload a thumbnail from the first frame if available
-        thumbnail_url = None
-        if frame_paths and len(frame_paths) > 0:
-            try:
-                if task_id:
-                    task_queue.update_progress(
-                        task_id=task_id,
-                        current_step="Generating thumbnail",
-                        percent=95,
-                        details="Creating and uploading thumbnail preview"
-                    )
-                    
-                # Use the first frame for the thumbnail
-                first_frame = frame_paths[0]
-                thumbnail_path = generate_thumbnail_from_frame(
-                    frame_path=first_frame,
-                    output_dir=temp_dir,
-                    source_dimensions=(width, height),  # Use source video dimensions
-                    maintain_aspect_ratio=True
-                )
-                
-                # Upload the thumbnail with a related object key
-                lottie_key = upload_result["object_key"]
-                thumbnail_key = lottie_key.replace(".json", ".png")
-                
-                thumbnail_result = r2_uploader.upload_file(
-                    thumbnail_path, 
-                    content_type="image/png",
-                    custom_key=thumbnail_key
-                )
-                
-                if thumbnail_result["success"]:
-                    thumbnail_url = thumbnail_result["url"]
-                    logger.info(f"Thumbnail uploaded successfully: {thumbnail_url}")
-            except Exception as e:
-                # Don't fail the whole request if thumbnail generation fails
-                logger.warning(f"Thumbnail generation failed: {str(e)}")
+        # Create output directory if it doesn't exist
+        output_dir = os.path.join(temp_dir, "output")
+        os.makedirs(output_dir, exist_ok=True)
         
-        # Final step: Cleanup and completion
-        if task_id:
-            task_queue.update_progress(
-                task_id=task_id,
-                current_step="Completing task",
-                percent=100,
-                details="Processing complete, cleaning up temporary files"
-            )
-            
-        # Clean up temporary files
-        cleanup_temp_files(temp_dir)
+        # Initialize progress
+        progress_callback(0, f"Preparing to process {original_filename}")
         
-        # Return success response with URLs
-        response = {"url": upload_result["url"]}
+        # Import the VideoProcessor and parameter builder
+        from app.infrastructure.video_processor import VideoProcessor
+        from app.models.lottie_params import VideoProcessingParamBuilder, VideoProcessingStrategy
         
-        # Add thumbnail URL if available
-        if thumbnail_url:
-            response["thumbnail_url"] = thumbnail_url
-            
-        return response
+        # Build the parameters for video processing
+        params = VideoProcessingParamBuilder()\
+            .with_file_path(file_path)\
+            .with_temp_dir(temp_dir)\
+            .with_fps(fps)\
+            .with_dimensions(width, height)\
+            .with_original_filename(original_filename)\
+            .with_strategy(VideoProcessingStrategy.STANDARD)\
+            .with_max_frames(100)\
+            .with_optimization(True, True)\
+            .with_task_id(task_id)\
+            .with_progress_callback(progress_callback)\
+            .build()
+        
+        # Create the video processor with the R2 uploader
+        processor = VideoProcessor(cloud_uploader=r2_uploader)
+        
+        # Process the video
+        result = processor.process_video(params)
+        
+        # Update progress to complete
+        progress_callback(100, "Video processing complete")
+        
+        # Return result with URLs
+        return {
+            "lottie_url": result.get("lottie_url"),
+            "thumbnail_url": result.get("thumbnail_url"),
+            "frame_count": result.get("frame_count"),
+            "duration": result.get("duration")
+        }
         
     except Exception as e:
         logger.error(f"Error processing video: {str(e)}")
-        # Clean up temporary files on error
+        if task_id:
+            task_queue.update_progress(
+                task_id=task_id,
+                current_step="Error",
+                percent=0,
+                details=f"Error processing video: {str(e)}"
+            )
+        raise ValueError(f"Failed to process video: {str(e)}")
         cleanup_temp_files(temp_dir)
         raise
 
