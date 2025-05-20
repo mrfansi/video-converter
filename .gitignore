@@ -49,7 +49,5 @@ ENV/
 # OS specific files
 .DS_Store
 Thumbs.db
-.windsurfrules
-.windsurf
 data/
 fix_*
