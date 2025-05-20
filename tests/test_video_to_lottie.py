@@ -12,7 +12,7 @@ import numpy as np
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.utils import extract_frames, prepare_frame_for_tracing
-from app.lottie_generator import trace_png_to_svg, parse_svg_paths_to_lottie_format, create_lottie_animation
+from app.lottie import LottieGeneratorFacade
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -92,9 +92,10 @@ def convert_video_to_lottie(video_path, output_dir=None, fps=10, width=640, heig
             prepare_end = time.time()
             prepare_times.append(prepare_end - prepare_start)
             
-            # Trace PNG to SVG with color preservation
+            # Trace PNG to SVG with color preservation using the facade
             trace_start = time.time()
-            svg_path = trace_png_to_svg(prepared_frame, svg_dir)
+            lottie_facade = LottieGeneratorFacade()
+            svg_path = lottie_facade.trace_png_to_svg(prepared_frame, svg_dir)
             trace_end = time.time()
             trace_times.append(trace_end - trace_start)
             svg_paths.append(svg_path)
@@ -118,18 +119,30 @@ def convert_video_to_lottie(video_path, output_dir=None, fps=10, width=640, heig
         logger.info(f"Creating Lottie animation from {len(svg_paths)} SVGs")
         lottie_start = time.time()
         
-        # Parse SVG paths to Lottie format
-        frame_paths = parse_svg_paths_to_lottie_format(svg_paths)
+        # Use the facade to create Lottie animation from SVGs
+        lottie_facade = LottieGeneratorFacade()
         
-        # Create Lottie animation
-        lottie_json = create_lottie_animation(
+        # First, parse SVG paths to get the frame data for analysis
+        frame_paths = lottie_facade.svg_parser.parse_svg_paths_to_lottie_format(svg_paths)
+        
+        # Create temporary file for Lottie JSON
+        temp_lottie_path = os.path.join(output_dir, 'temp_animation.json')
+        
+        # Create Lottie animation directly from SVG files
+        lottie_path = lottie_facade.create_lottie_from_svgs(
             svg_paths=svg_paths,
+            output_path=temp_lottie_path,
             fps=fps,
             width=width,
             height=height,
             max_frames=max_frames,
-            optimize=True
+            optimize=True,
+            compress=False  # Don't compress yet for analysis
         )
+        
+        # Load the generated JSON for analysis
+        with open(lottie_path, 'r') as f:
+            lottie_json = json.load(f)
         lottie_end = time.time()
         results["timings"]["create_lottie"] = lottie_end - lottie_start
         

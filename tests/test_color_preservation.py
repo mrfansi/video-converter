@@ -8,7 +8,7 @@ from pathlib import Path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.utils import prepare_frame_for_tracing, extract_frames
-from app.lottie_generator import trace_png_to_svg
+from app.lottie import LottieGeneratorFacade
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -44,8 +44,9 @@ def test_color_preservation():
             prepared_frame = prepare_frame_for_tracing(sample_frame)
             logger.info(f"Prepared frame: {prepared_frame}")
             
-            # Trace the frame to SVG
-            svg_path = trace_png_to_svg(prepared_frame, svg_dir)
+            # Trace the frame to SVG using the facade
+            lottie_facade = LottieGeneratorFacade()
+            svg_path = lottie_facade.trace_png_to_svg(prepared_frame, svg_dir)
             logger.info(f"Generated SVG: {svg_path}")
             
             # Check if the SVG file exists

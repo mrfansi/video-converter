@@ -13,7 +13,7 @@ from pathlib import Path
 from app.config import settings
 from app.utils import create_temp_directory, extract_frames, prepare_frame_for_tracing, cleanup_temp_files
 from app.video_converter import convert_video, get_video_info, get_supported_formats
-from app.lottie_generator import trace_png_to_svg, parse_svg_to_paths, create_lottie_animation, save_lottie_json
+from app.lottie import LottieGeneratorFacade
 from app.uploader import CloudflareR2Uploader
 from app.thumbnail_generator import generate_thumbnail_from_frame, upload_thumbnail
 from app.task_queue import task_queue, TaskStatus
@@ -187,8 +187,9 @@ def process_video_task(
             # Prepare frame for tracing
             prepared_frame = prepare_frame_for_tracing(frame_path)
             
-            # Trace PNG to SVG
-            svg_path = trace_png_to_svg(prepared_frame, svg_dir)
+            # Trace PNG to SVG using the Lottie generator facade
+            lottie_facade = LottieGeneratorFacade()
+            svg_path = lottie_facade.trace_png_to_svg(prepared_frame, svg_dir)
             svg_paths.append(svg_path)
         
         logger.info(f"Generated {len(svg_paths)} SVG files")
@@ -204,19 +205,22 @@ def process_video_task(
                 details=f"Generating Lottie animation from {len(svg_paths)} SVG files"
             )
         
-        # Create Lottie animation directly from SVG files using python-lottie
-        lottie_json = create_lottie_animation(
-            svg_paths=svg_paths,  # Pass SVG file paths directly
+        # Create Lottie animation directly from SVG files using the facade
+        lottie_facade = LottieGeneratorFacade()
+        lottie_filename = f"output_{int(time.time())}.json"
+        lottie_path = os.path.join(temp_dir, lottie_filename)
+        
+        # Use the facade to create and save the Lottie animation in one step
+        lottie_path = lottie_facade.create_lottie_from_svgs(
+            svg_paths=svg_paths,
+            output_path=lottie_path,
             fps=fps,
             width=width,
             height=height,
-            optimize=True  # Apply optimizations to reduce file size
+            max_frames=100,
+            optimize=True,
+            compress=True
         )
-        
-        # Save Lottie JSON to file with compression
-        lottie_filename = f"output_{int(time.time())}.json"
-        lottie_path = os.path.join(temp_dir, lottie_filename)
-        lottie_path = save_lottie_json(lottie_json, lottie_path, compress=True)
         logger.info(f"Saved Lottie JSON to {lottie_path}")
         
         # Step 5: Upload to Cloudflare R2
